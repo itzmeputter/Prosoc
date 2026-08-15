@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Football Field — Tactics Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1F17;
+    --pitch-dark:#1B4B33;
+    --pitch-light:#1F5738;
+    --line:#EDEAE0;
+    --text:#EDEAE0;
+    --text-muted:#8FA396;
+    --panel-bg:#0F2A1E;
+    --panel-border:rgba(237,234,224,0.09);
+    --me:#E8B33D;
+    --me-dark:#4A3B14;
+    --teammate:#5B8DBE;
+    --teammate-dark:#1C2E3E;
+    --opponent:#C15C4E;
+    --opponent-dark:#3A211C;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    user-select:none;
+  }
+  .app{max-width:560px;margin:0 auto;padding:26px 18px 50px;}
+  .header{margin-bottom:18px;border-bottom:1px solid var(--panel-border);padding-bottom:14px;}
+  .title{font-family:'Oswald',sans-serif;font-weight:700;font-size:26px;letter-spacing:0.5px;text-transform:uppercase;margin:0;}
+  .subtitle{color:var(--text-muted);font-size:13px;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+
+  .move-panel{
+    background:var(--panel-bg);
+    border:1px solid var(--panel-border);
+    border-left:3px solid var(--me);
+    padding:12px 14px;
+    margin-bottom:14px;
+    min-height:20px;
+    transition:border-color .15s;
+  }
+  .move-label{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:4px;}
+  .move-text{font-size:14px;line-height:1.4;}
+  .move-placeholder{font-size:13px;color:var(--text-muted);}
+
+  .field-wrap{background:var(--panel-bg);border:1px solid var(--panel-border);padding:14px;}
+  .pitch-stage{position:relative;width:100%;}
+  svg{width:100%;height:auto;display:block;}
+
+  .token{
+    position:absolute;
+    width:9%;
+    aspect-ratio:1/1;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:grab;
+    touch-action:none;
+    box-shadow:0 3px 8px rgba(0,0,0,0.4);
+    z-index:5;
+  }
+  .token.dragging{cursor:grabbing;z-index:20;filter:brightness(1.15);}
+  .token svg{width:70%;height:70%;}
+  .token.me{background:var(--me-dark);border:2px solid var(--me);}
+  .token.teammate{background:var(--teammate-dark);border:2px solid var(--teammate);}
+  .token.opponent{background:var(--opponent-dark);border:2px solid var(--opponent);}
+  .token-del{
+    position:absolute;top:-6px;right:-6px;
+    width:16px;height:16px;border-radius:50%;
+    background:var(--opponent);color:#fff;
+    font-size:10px;line-height:16px;text-align:center;
+    display:none;
+  }
+  .token.selected .token-del{display:block;}
+
+  .tray{
+    margin-top:16px;
+    background:var(--panel-bg);
+    border:1px solid var(--panel-border);
+    padding:16px;
+  }
+  .tray-title{font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin:0 0 12px;text-align:center;}
+  .tray-row{display:flex;justify-content:space-around;gap:12px;}
+  .tray-item{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .tray-label{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);}
+  .tray-icon{
+    width:64px;height:64px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:grab;touch-action:none;
+  }
+  .tray-icon svg{width:60%;height:60%;}
+  .tray-icon.opponent{background:var(--opponent-dark);border:2px solid var(--opponent);}
+  .tray-icon.me{background:var(--me-dark);border:2px solid var(--me);}
+  .tray-icon.teammate{background:var(--teammate-dark);border:2px solid var(--teammate);}
+
+  .footer-row{display:flex;justify-content:center;margin-top:14px;}
+  .btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;
+    background:transparent;border:1px solid var(--panel-border);color:var(--text-muted);
+    padding:8px 14px;border-radius:3px;cursor:pointer;
+  }
+  .btn:hover{border-color:var(--text-muted);color:var(--text);}
+  .hint{font-size:11px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5;font-family:'IBM Plex Mono',monospace;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1 class="title">Tactics board</h1>
+    <div class="subtitle">Drag a player onto the pitch for a suggested next move</div>
+  </div>
+
+  <div class="move-panel" id="movePanel">
+    <div class="move-label">Next move</div>
+    <div class="move-placeholder" id="moveText">Drag a player onto the pitch to get started.</div>
+  </div>
+
+  <div class="field-wrap">
+    <div class="pitch-stage" id="pitchStage">
+      <svg viewBox="-25 -30 730 1110" xmlns="http://www.w3.org/2000/svg">
+        <rect x="-25" y="-30" width="730" height="1110" fill="var(--bg)"/>
+        <g id="stripes"></g>
+        <rect x="0" y="0" width="680" height="1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <line x1="0" y1="525" x2="680" y2="525" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="525" r="91.5" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="525" r="3" fill="var(--line)"/>
+        <rect x="138.4" y="0" width="403.2" height="165" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <rect x="248.4" y="0" width="183.2" height="55" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="110" r="3" fill="var(--line)"/>
+        <path d="M 266.87 165 A 91.5 91.5 0 0 1 413.13 165" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 303.4 0 L 303.4 -22 L 376.6 -22 L 376.6 0" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <rect x="138.4" y="885" width="403.2" height="165" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <rect x="248.4" y="995" width="183.2" height="55" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="940" r="3" fill="var(--line)"/>
+        <path d="M 266.87 885 A 91.5 91.5 0 0 0 413.13 885" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 303.4 1050 L 303.4 1072 L 376.6 1072 L 376.6 1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 0 15 A 15 15 0 0 0 15 0" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 680 15 A 15 15 0 0 1 665 0" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 0 1035 A 15 15 0 0 1 15 1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 680 1035 A 15 15 0 0 0 665 1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+      </svg>
+      <div id="tokenLayer"></div>
+    </div>
+  </div>
+
+  <div class="tray">
+    <div class="tray-title">Drag a player onto the pitch</div>
+    <div class="tray-row">
+      <div class="tray-item">
+        <div class="tray-icon opponent" data-type="opponent" id="trayOpponent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--opponent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>
+        </div>
+        <div class="tray-label">Opponent</div>
+      </div>
+      <div class="tray-item">
+        <div class="tray-icon me" data-type="me" id="trayMe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--me)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>
+        </div>
+        <div class="tray-label">Me</div>
+      </div>
+      <div class="tray-item">
+        <div class="tray-icon teammate" data-type="teammate" id="trayTeammate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--teammate)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>
+        </div>
+        <div class="tray-label">Teammate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-row">
+    <button class="btn" id="clearBtn">Clear board</button>
+  </div>
+  <div class="hint">Tap a placed player to select it, then tap the red badge to remove it. Your team attacks the top goal.</div>
+</div>
+
+<script>
+(function(){
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // ---- pitch stripes ----
+  const stripesGroup = document.getElementById('stripes');
+  const stripeCount = 12, stripeHeight = 1050/stripeCount;
+  for(let i=0;i<stripeCount;i++){
+    const r = document.createElementNS(NS,'rect');
+    r.setAttribute('x',0); r.setAttribute('y', i*stripeHeight);
+    r.setAttribute('width',680); r.setAttribute('height', stripeHeight);
+    r.setAttribute('fill', i%2===0 ? 'var(--pitch-light)' : 'var(--pitch-dark)');
+    stripesGroup.appendChild(r);
+  }
+
+  // ---- state ----
+  const stage = document.getElementById('pitchStage');
+  const tokenLayer = document.getElementById('tokenLayer');
+  const moveText = document.getElementById('moveText');
+  const movePanel = document.getElementById('movePanel');
+  const clearBtn = document.getElementById('clearBtn');
+  let tokens = []; // {id, type, xPct, yPct, el}
+  let selectedId = null;
+
+  const BORDER_COLOR = { me:'var(--me)', teammate:'var(--teammate)', opponent:'var(--opponent)' };
+
+  const STICK_SVG = (color) => `<svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>`;
+
+  function clampPct(v){ return Math.max(2, Math.min(98, v)); }
+
+  function pointerToPct(clientX, clientY){
+    const rect = stage.getBoundingClientRect();
+    const xPct = ((clientX - rect.left) / rect.width) * 100;
+    const yPct = ((clientY - rect.top) / rect.height) * 100;
+    return { xPct: clampPct(xPct), yPct: clampPct(yPct) };
+  }
+
+  function createTokenEl(type){
+    const el = document.createElement('div');
+    el.className = 'token ' + type;
+    el.innerHTML = STICK_SVG(getComputedStyleColor(type)) + '<div class="token-del">&times;</div>';
+    tokenLayer.appendChild(el);
+    return el;
+  }
+  function getComputedStyleColor(type){
+    if(type==='me') return '#E8B33D';
+    if(type==='teammate') return '#5B8DBE';
+    return '#C15C4E';
+  }
+
+  function setTokenPos(el, xPct, yPct){
+    el.style.left = xPct + '%';
+    el.style.top = yPct + '%';
+  }
+
+  function deselectAll(){
+    tokens.forEach(t => t.el.classList.remove('selected'));
+    selectedId = null;
+  }
+
+  function removeToken(id){
+    const t = tokens.find(t=>t.id===id);
+    if(!t) return;
+    t.el.remove();
+    tokens = tokens.filter(t=>t.id!==id);
+    if(selectedId===id) selectedId=null;
+  }
+
+  clearBtn.addEventListener('click', ()=>{
+    tokens.forEach(t=>t.el.remove());
+    tokens = [];
+    selectedId = null;
+    moveText.textContent = 'Drag a player onto the pitch to get started.';
+    moveText.className = 'move-placeholder';
+    movePanel.style.borderLeftColor = 'var(--me)';
+  });
+
+  // ---- dragging a NEW token from the tray ----
+  function bindTrayItem(elId, type){
+    const trayEl = document.getElementById(elId);
+    trayEl.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      const id = 't'+Date.now()+Math.random().toString(36).slice(2,6);
+      const tokenEl = createTokenEl(type);
+      tokenEl.classList.add('dragging');
+      const pos = pointerToPct(e.clientX, e.clientY);
+      setTokenPos(tokenEl, pos.xPct, pos.yPct);
+      const record = { id, type, xPct: pos.xPct, yPct: pos.yPct, el: tokenEl };
+      tokens.push(record);
+
+      function onMove(ev){
+        const p = pointerToPct(ev.clientX, ev.clientY);
+        record.xPct = p.xPct; record.yPct = p.yPct;
+        setTokenPos(tokenEl, p.xPct, p.yPct);
+      }
+      function onUp(ev){
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        tokenEl.classList.remove('dragging');
+        bindTokenDrag(record);
+        bindTokenTap(record);
+        announceMove(record);
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp, {once:true});
+    });
+  }
+
+  // ---- dragging an EXISTING token to reposition ----
+  function bindTokenDrag(record){
+    record.el.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      record.el.classList.add('dragging');
+      record.el.setPointerCapture(e.pointerId);
+
+      function onMove(ev){
+        const p = pointerToPct(ev.clientX, ev.clientY);
+        record.xPct = p.xPct; record.yPct = p.yPct;
+        setTokenPos(record.el, p.xPct, p.yPct);
+      }
+      function onUp(ev){
+        record.el.removeEventListener('pointermove', onMove);
+        record.el.removeEventListener('pointerup', onUp);
+        record.el.classList.remove('dragging');
+        announceMove(record);
+      }
+      record.el.addEventListener('pointermove', onMove);
+      record.el.addEventListener('pointerup', onUp, {once:true});
+    });
+  }
+
+  function bindTokenTap(record){
+    let downX, downY, moved=false;
+    record.el.addEventListener('pointerdown',(e)=>{ downX=e.clientX; downY=e.clientY; moved=false; });
+    record.el.addEventListener('pointermove',(e)=>{
+      if(Math.abs(e.clientX-downX)>4 || Math.abs(e.clientY-downY)>4) moved=true;
+    });
+    record.el.addEventListener('pointerup',(e)=>{
+      if(moved) return;
+      const wasSelected = record.el.classList.contains('selected');
+      deselectAll();
+      if(!wasSelected){ record.el.classList.add('selected'); selectedId = record.id; }
+    });
+    record.el.querySelector('.token-del').addEventListener('pointerdown',(e)=>{
+      e.stopPropagation();
+    });
+    record.el.querySelector('.token-del').addEventListener('click',(e)=>{
+      e.stopPropagation();
+      removeToken(record.id);
+    });
+  }
+
+  bindTrayItem('trayOpponent','opponent');
+  bindTrayItem('trayMe','me');
+  bindTrayItem('trayTeammate','teammate');
+
+  stage.addEventListener('pointerdown', (e)=>{
+    if(e.target===stage || e.target.tagName==='svg' || e.target.tagName==='rect' || e.target.tagName==='circle' || e.target.tagName==='line' || e.target.tagName==='path' || e.target.tagName==='g'){
+      deselectAll();
+    }
+  });
+
+  // ---- next-move heuristics ----
+  function metersFromPct(record){
+    const xm = (record.xPct/100)*68;
+    const ym = (record.yPct/100)*105;
+    return {xm, ym};
+  }
+  function dist(a,b){ return Math.hypot(a.xm-b.xm, a.ym-b.ym); }
+
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function announceMove(record){
+    const pos = metersFromPct(record);
+    const others = tokens.filter(t=>t.id!==record.id).map(t=>({...t, ...metersFromPct(t)}));
+
+    let msg = '';
+    let color = BORDER_COLOR[record.type];
+
+    if(record.type === 'me'){
+      const distToGoal = dist(pos, {xm:34, ym:0});
+      const opponents = others.filter(t=>t.type==='opponent');
+      const teammatesForward = others.filter(t=>t.type==='teammate' && t.ym < pos.ym - 3);
+      const nearestOpp = opponents.length ? Math.min(...opponents.map(o=>dist(pos,o))) : Infinity;
+
+      if(distToGoal < 12 && nearestOpp > 5){
+        msg = pick(["Take the shot — you're in a prime position!","Get a shot away right now, the space is there.","Shoot first time if the ball's there for it."]);
+      } else if(nearestOpp < 4){
+        msg = pick(["Opponent's tight on you — release the ball quickly.","One-touch pass, don't get caught in possession.","Lay it off before they close you down."]);
+      } else if(distToGoal < 25){
+        msg = pick(["Look to shoot or cut inside for a better angle.","Take a touch and shoot, or find the cutback.","Drive at goal — you're in range."]);
+      } else if(teammatesForward.length){
+        msg = pick(["Slide the pass through to your teammate's run.","Play it forward to the runner ahead of you.","Look up — your teammate's making a run in behind."]);
+      } else if(distToGoal > 70){
+        msg = pick(["Keep it simple, build from the back.","Circulate possession, no need to force it yet.","Play safe here, there's no rush."]);
+      } else {
+        msg = pick(["Carry it forward, you've got space ahead.","Drive at the defense while there's room to run.","Take it forward and look for the next pass."]);
+      }
+    }
+
+    else if(record.type === 'teammate'){
+      const inAttackingThird = pos.ym < 35;
+      const inDefensiveThird = pos.ym > 70;
+      const isWide = pos.xm < 20 || pos.xm > 48;
+
+      if(inAttackingThird && isWide){
+        msg = pick(["Stay wide and stretch their back line.","Hold width to open passing lanes centrally.","Keep the touchline, pin the fullback."]);
+      } else if(inAttackingThird){
+        msg = pick(["Make a run in behind the defense.","Time a run into the box.","Get in the box — look for the cross."]);
+      } else if(inDefensiveThird){
+        msg = pick(["Drop deeper to help build from the back.","Offer a safe outlet for the defense.","Come short and help recycle possession."]);
+      } else {
+        msg = pick(["Show for the ball, offer an easy pass.","Drop into space to link play.","Check to feet and turn if you can."]);
+      }
+    }
+
+    else { // opponent
+      const dangerZone = pos.ym > 80;
+      const midZone = pos.ym > 45 && pos.ym <= 80;
+      if(dangerZone){
+        msg = pick(["Press immediately — deny the shot.","Close them down fast and cut the angle.","Get tight now, don't let them turn."]);
+      } else if(midZone){
+        msg = pick(["Track their run, don't let them turn easily.","Show them onto their weaker foot.","Stay goal-side and delay."]);
+      } else {
+        msg = pick(["Stay compact, no need to press yet.","Hold shape, let them have it there.","Screen the passing lane instead of chasing."]);
+      }
+    }
+
+    moveText.textContent = msg;
+    moveText.className = 'move-text';
+    movePanel.style.borderLeftColor = color;
+  }
+})();
+</script>
+</body>
+</html>
