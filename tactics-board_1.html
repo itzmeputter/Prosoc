@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Football Field — Tactics Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1F17;
+    --pitch-dark:#1B4B33;
+    --pitch-light:#1F5738;
+    --line:#EDEAE0;
+    --text:#EDEAE0;
+    --text-muted:#8FA396;
+    --panel-bg:#0F2A1E;
+    --panel-border:rgba(237,234,224,0.09);
+    --me:#E8B33D;
+    --me-dark:#4A3B14;
+    --teammate:#5B8DBE;
+    --teammate-dark:#1C2E3E;
+    --opponent:#C15C4E;
+    --opponent-dark:#3A211C;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    user-select:none;
+  }
+  .app{max-width:560px;margin:0 auto;padding:26px 18px 50px;}
+
+  /* ============ START SCREEN ============ */
+  #startScreen{
+    max-width:560px;margin:0 auto;
+    min-height:100vh;
+    display:flex;flex-direction:column;
+    padding:40px 22px 50px;
+  }
+  .start-eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--me);margin:0 0 10px;
+  }
+  .start-title{
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:38px;line-height:1.05;
+    text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;
+  }
+  .start-sub{
+    font-size:14px;color:var(--text-muted);line-height:1.55;margin:0 0 30px;max-width:38ch;
+  }
+
+  /* mini pitch signature: three balls placed at increasing distance from goal */
+  .mini-pitch{
+    position:relative;width:100%;aspect-ratio:680/460;
+    background:var(--panel-bg);border:1px solid var(--panel-border);
+    margin-bottom:34px;overflow:hidden;
+  }
+  .mini-pitch svg{width:100%;height:100%;display:block;}
+  .mini-dot{position:absolute;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 2px 6px rgba(0,0,0,0.5);}
+  .mini-label{
+    position:absolute;transform:translate(-50%,0);
+    font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.5px;
+    text-transform:uppercase;color:var(--text-muted);white-space:nowrap;
+  }
+
+  .diff-list{display:flex;flex-direction:column;gap:10px;margin-bottom:auto;}
+  .diff-btn{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    background:var(--panel-bg);border:1px solid var(--panel-border);
+    border-left:3px solid var(--diff-color, var(--me));
+    padding:16px 16px;cursor:pointer;text-align:left;
+    color:var(--text);font-family:inherit;
+    transition:background .15s, border-color .15s, transform .1s;
+  }
+  .diff-btn:hover{background:#132E20;border-left-color:var(--diff-color, var(--me));}
+  .diff-btn:active{transform:scale(0.99);}
+  .diff-main{display:flex;flex-direction:column;gap:3px;}
+  .diff-name{font-family:'Oswald',sans-serif;font-weight:600;font-size:16px;text-transform:uppercase;letter-spacing:0.4px;}
+  .diff-desc{font-size:12px;color:var(--text-muted);line-height:1.4;}
+  .diff-num{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--diff-color, var(--me));
+    border:1px solid var(--diff-color, var(--me));
+    border-radius:50%;width:26px;height:26px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .start-hint{
+    font-size:11px;color:var(--text-muted);text-align:center;margin-top:26px;
+    font-family:'IBM Plex Mono',monospace;line-height:1.5;
+  }
+
+  /* ============ BOARD SCREEN (unchanged design) ============ */
+  #boardScreen{display:none;}
+  .header{margin-bottom:18px;border-bottom:1px solid var(--panel-border);padding-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .header-titles{flex:1;}
+  .title{font-family:'Oswald',sans-serif;font-weight:700;font-size:26px;letter-spacing:0.5px;text-transform:uppercase;margin:0;}
+  .subtitle{color:var(--text-muted);font-size:13px;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+  .diff-tag{
+    flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;
+    color:var(--diff-color, var(--me));border:1px solid var(--diff-color, var(--me));
+    padding:5px 9px;border-radius:3px;cursor:pointer;background:transparent;white-space:nowrap;
+  }
+  .diff-tag:hover{background:var(--panel-bg);}
+
+  .move-panel{
+    background:var(--panel-bg);
+    border:1px solid var(--panel-border);
+    border-left:3px solid var(--me);
+    padding:12px 14px;
+    margin-bottom:14px;
+    min-height:20px;
+    transition:border-color .15s;
+  }
+  .move-label{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:4px;}
+  .move-text{font-size:14px;line-height:1.4;}
+  .move-placeholder{font-size:13px;color:var(--text-muted);}
+
+  .field-wrap{background:var(--panel-bg);border:1px solid var(--panel-border);padding:14px;}
+  .pitch-stage{position:relative;width:100%;}
+  svg{width:100%;height:auto;display:block;}
+
+  .token{
+    position:absolute;
+    width:9%;
+    aspect-ratio:1/1;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:grab;
+    touch-action:none;
+    box-shadow:0 3px 8px rgba(0,0,0,0.4);
+    z-index:5;
+  }
+  .token.dragging{cursor:grabbing;z-index:20;filter:brightness(1.15);}
+  .token.animating{transition:left .5s ease, top .5s ease;}
+  .token svg{width:70%;height:70%;}
+  .token.me{background:var(--me-dark);border:2px solid var(--me);}
+  .token.teammate{background:var(--teammate-dark);border:2px solid var(--teammate);}
+  .token.opponent{background:var(--opponent-dark);border:2px solid var(--opponent);}
+  .token-del{
+    position:absolute;top:-6px;right:-6px;
+    width:16px;height:16px;border-radius:50%;
+    background:var(--opponent);color:#fff;
+    font-size:10px;line-height:16px;text-align:center;
+    display:none;
+  }
+  .token.selected .token-del{display:block;}
+
+  .tray{
+    margin-top:16px;
+    background:var(--panel-bg);
+    border:1px solid var(--panel-border);
+    padding:16px;
+  }
+  .tray-title{font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin:0 0 12px;text-align:center;}
+  .tray-row{display:flex;justify-content:space-around;gap:12px;}
+  .tray-item{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .tray-label{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);}
+  .tray-icon{
+    width:64px;height:64px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:grab;touch-action:none;
+  }
+  .tray-icon svg{width:60%;height:60%;}
+  .tray-icon.opponent{background:var(--opponent-dark);border:2px solid var(--opponent);}
+  .tray-icon.me{background:var(--me-dark);border:2px solid var(--me);}
+  .tray-icon.teammate{background:var(--teammate-dark);border:2px solid var(--teammate);}
+  .tray-icon.disabled{opacity:0.3;cursor:not-allowed;filter:grayscale(0.6);}
+
+  .tray-pos-select{
+    width:88px;font-family:'IBM Plex Mono',monospace;font-size:10px;
+    background:var(--panel-bg);color:var(--text);border:1px solid var(--panel-border);
+    border-radius:4px;padding:4px 2px;text-align:center;text-transform:uppercase;
+  }
+  .tray-pos-select:focus{outline:1px solid var(--me);}
+
+  .token-pos{
+    position:absolute;left:50%;bottom:-15px;transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:0.3px;
+    color:var(--text-muted);white-space:nowrap;pointer-events:none;
+  }
+  .token-stamina{
+    position:absolute;left:50%;top:-9px;transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:7.5px;
+    padding:0 3px;border-radius:3px;background:rgba(0,0,0,0.55);
+    pointer-events:none;white-space:nowrap;
+  }
+  .token-stamina.high{color:#8FD19E;}
+  .token-stamina.mid{color:#E8B33D;}
+  .token-stamina.low{color:#C15C4E;}
+
+  .decision-line{font-size:14px;line-height:1.4;margin-bottom:10px;}
+  .decision-line strong{color:var(--me);letter-spacing:0.3px;}
+  .prob-list{display:flex;flex-direction:column;gap:6px;}
+  .prob-row{display:flex;align-items:center;gap:8px;}
+  .prob-name{width:52px;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.3px;color:var(--text-muted);flex-shrink:0;}
+  .prob-track{flex:1;height:6px;background:rgba(237,234,224,0.08);border-radius:3px;overflow:hidden;}
+  .prob-fill{height:100%;border-radius:3px;transition:width .2s;}
+  .prob-fill.prob-shoot{background:var(--me);}
+  .prob-fill.prob-pass{background:var(--teammate);}
+  .prob-fill.prob-dribble{background:var(--opponent);}
+  .prob-pct{width:34px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);flex-shrink:0;}
+
+  .play-btn{margin-top:12px;width:100%;padding:9px 14px;}
+
+  .ball{
+    position:absolute;width:3.2%;aspect-ratio:1/1;
+    border-radius:50%;background:#F4F1E6;
+    box-shadow:0 2px 6px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.25);
+    transform:translate(-50%,-50%);
+    z-index:15;transition:left .6s ease,top .6s ease;
+    pointer-events:none;display:none;
+  }
+  .ball.visible{display:block;}
+
+  .goal-flash{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:13vw;max-font-size:46px;
+    color:#fff;text-shadow:0 0 22px rgba(232,179,61,0.95), 0 2px 4px rgba(0,0,0,0.6);
+    letter-spacing:1px;opacity:0;pointer-events:none;z-index:30;
+  }
+  .goal-flash.show{animation:goalPop .9s ease forwards;}
+  @keyframes goalPop{
+    0%{opacity:0;transform:scale(0.55);}
+    30%{opacity:1;transform:scale(1.15);}
+    60%{opacity:1;transform:scale(1);}
+    100%{opacity:0;transform:scale(1);}
+  }
+
+  .footer-row{display:flex;justify-content:center;margin-top:14px;}
+  .btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;
+    background:transparent;border:1px solid var(--panel-border);color:var(--text-muted);
+    padding:8px 14px;border-radius:3px;cursor:pointer;
+  }
+  .btn:hover{border-color:var(--text-muted);color:var(--text);}
+  .hint{font-size:11px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5;font-family:'IBM Plex Mono',monospace;}
+
+  .flight-path{fill:none;stroke-linecap:round;pointer-events:none;opacity:0;}
+  .flight-path.assist-line{stroke:#5B8DBE;stroke-width:4;stroke-dasharray:9 7;animation:dashFlow .5s linear infinite;}
+  .flight-path.shot-line{stroke:#E8B33D;stroke-width:5;}
+  .flight-path.shot-line.miss-line{stroke:#C15C4E;}
+  @keyframes dashFlow{ to{ stroke-dashoffset:-32; } }
+
+  @media (prefers-reduced-motion: reduce){
+    .token.animating, .ball, .goal-flash.show{transition:none !important;animation:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ START SCREEN ============ -->
+<div id="startScreen">
+  <div class="start-eyebrow">Tactics board</div>
+  <h1 class="start-title">Choose your level</h1>
+  <p class="start-sub">Pick a difficulty. It changes how sharply defenders press, how often passes get cut out, and how often your shots find the net.</p>
+
+  <div class="mini-pitch">
+    <svg viewBox="0 0 680 460" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="680" height="460" fill="var(--pitch-dark)"/>
+      <rect x="0" y="0" width="680" height="76.6" fill="var(--pitch-light)"/>
+      <rect x="0" y="153.3" width="680" height="76.6" fill="var(--pitch-light)"/>
+      <rect x="0" y="306.6" width="680" height="76.6" fill="var(--pitch-light)"/>
+      <rect x="0" y="0" width="680" height="460" fill="none" stroke="var(--line)" stroke-width="2"/>
+      <rect x="248.4" y="0" width="183.2" height="72" fill="none" stroke="var(--line)" stroke-width="2"/>
+      <path d="M 303.4 0 L 303.4 -18 L 376.6 -18 L 376.6 0" fill="none" stroke="var(--line)" stroke-width="2"/>
+    </svg>
+    <div class="mini-dot" style="background:var(--me);left:50%;top:14%;"></div>
+    <div class="mini-label" style="left:50%;top:20%;">near</div>
+    <div class="mini-dot" style="background:var(--teammate);left:28%;top:46%;"></div>
+    <div class="mini-label" style="left:28%;top:52%;">mid</div>
+    <div class="mini-dot" style="background:var(--opponent);left:68%;top:80%;"></div>
+    <div class="mini-label" style="left:68%;top:86%;">far</div>
+  </div>
+
+  <div class="diff-list">
+    <button class="diff-btn" data-difficulty="beginner" style="--diff-color:var(--teammate);">
+      <span class="diff-main">
+        <span class="diff-name">Beginner</span>
+        <span class="diff-desc">Defenders react slower, lanes stay open, shots go in more often.</span>
+      </span>
+      <span class="diff-num">1</span>
+    </button>
+    <button class="diff-btn" data-difficulty="intermediate" style="--diff-color:var(--me);">
+      <span class="diff-main">
+        <span class="diff-name">Intermediate</span>
+        <span class="diff-desc">Balanced pressure, realistic interceptions and finishing.</span>
+      </span>
+      <span class="diff-num">2</span>
+    </button>
+    <button class="diff-btn" data-difficulty="advanced" style="--diff-color:var(--opponent);">
+      <span class="diff-main">
+        <span class="diff-name">Advanced</span>
+        <span class="diff-desc">Defenders close down fast, tighter lanes, chances are earned.</span>
+      </span>
+      <span class="diff-num">3</span>
+    </button>
+  </div>
+
+  <div class="start-hint">You can change level anytime from the board.</div>
+</div>
+
+<!-- ============ BOARD SCREEN ============ -->
+<div id="boardScreen">
+<div class="app">
+  <div class="header">
+    <div class="header-titles">
+      <h1 class="title">Tactics board</h1>
+      <div class="subtitle">Drag a player onto the pitch for a suggested next move</div>
+    </div>
+    <button class="diff-tag" id="diffTag" style="--diff-color:var(--me);">Intermediate</button>
+  </div>
+
+  <div class="move-panel" id="movePanel">
+    <div class="move-label">Next move</div>
+    <div class="move-placeholder" id="moveText">Drag a player onto the pitch to get started.</div>
+    <button class="btn play-btn" id="playBtn" style="display:none;">▶ Play it out</button>
+  </div>
+
+  <div class="field-wrap">
+    <div class="pitch-stage" id="pitchStage">
+      <svg viewBox="-25 -30 730 1110" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrowAssist" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#5B8DBE"/>
+          </marker>
+          <marker id="arrowShot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#E8B33D"/>
+          </marker>
+          <marker id="arrowShotMiss" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#C15C4E"/>
+          </marker>
+        </defs>
+        <rect x="-25" y="-30" width="730" height="1110" fill="var(--bg)"/>
+        <g id="stripes"></g>
+        <rect x="0" y="0" width="680" height="1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <line x1="0" y1="525" x2="680" y2="525" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="525" r="91.5" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="525" r="3" fill="var(--line)"/>
+        <rect x="138.4" y="0" width="403.2" height="165" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <rect x="248.4" y="0" width="183.2" height="55" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="110" r="3" fill="var(--line)"/>
+        <path d="M 266.87 165 A 91.5 91.5 0 0 1 413.13 165" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 303.4 0 L 303.4 -22 L 376.6 -22 L 376.6 0" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <rect x="138.4" y="885" width="403.2" height="165" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <rect x="248.4" y="995" width="183.2" height="55" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="340" cy="940" r="3" fill="var(--line)"/>
+        <path d="M 266.87 885 A 91.5 91.5 0 0 0 413.13 885" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 303.4 1050 L 303.4 1072 L 376.6 1072 L 376.6 1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 0 15 A 15 15 0 0 0 15 0" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 680 15 A 15 15 0 0 1 665 0" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 0 1035 A 15 15 0 0 1 15 1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <path d="M 680 1035 A 15 15 0 0 0 665 1050" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <g id="lineLayer"></g>
+      </svg>
+      <div id="tokenLayer"></div>
+      <div class="ball" id="ball"></div>
+      <div class="goal-flash" id="goalFlash">GOAL!</div>
+    </div>
+  </div>
+
+  <div class="tray">
+    <div class="tray-title">Pick a position, then drag onto the pitch</div>
+    <div class="tray-row">
+      <div class="tray-item">
+        <div class="tray-icon opponent" data-type="opponent" id="trayOpponent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--opponent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>
+        </div>
+        <div class="tray-label">Opponent</div>
+        <select class="tray-pos-select" id="posOpponent"></select>
+      </div>
+      <div class="tray-item">
+        <div class="tray-icon me" data-type="me" id="trayMe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--me)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>
+        </div>
+        <div class="tray-label">Me</div>
+        <select class="tray-pos-select" id="posMe"></select>
+      </div>
+      <div class="tray-item">
+        <div class="tray-icon teammate" data-type="teammate" id="trayTeammate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--teammate)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>
+        </div>
+        <div class="tray-label">Teammate</div>
+        <select class="tray-pos-select" id="posTeammate"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-row">
+    <button class="btn" id="clearBtn">Clear board</button>
+  </div>
+  <div class="hint">Tap a placed player to select it, then tap the red badge to remove it. Your team attacks the top goal. Positions shape behavior — off-the-shoulder runs risk offside, fouls in the box give a penalty, two yellows is a red, and covered ground drains stamina.</div>
+</div>
+</div>
+
+<script>
+(function(){
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // ---- difficulty ----
+  const DIFFICULTIES = {
+    beginner:     { label:'Beginner',     color:'var(--teammate)', pressStep:[0.08,0.16], interceptMult:0.55, tackleMult:0.55, goalBonus:0.14 },
+    intermediate: { label:'Intermediate', color:'var(--me)',       pressStep:[0.16,0.28], interceptMult:1.0,  tackleMult:1.0,  goalBonus:0.0  },
+    advanced:     { label:'Advanced',     color:'var(--opponent)', pressStep:[0.24,0.40], interceptMult:1.5,  tackleMult:1.5,  goalBonus:-0.10 }
+  };
+  let currentDifficulty = 'intermediate';
+
+  // ---- positional archetypes (Part 1 of the tactical spec) ----
+  // Each profile nudges the decision engine: shootMult/passMult/dribbleMult scale the
+  // ball-carrier's own scores, runQuality scales how dangerous their off-ball runs are when
+  // a teammate picks them out, pressAgg scales how sharply they close down / tackle as a
+  // defender, and offsideRisk marks positions that deliberately play on the shoulder of the
+  // last defender (higher offside risk, higher reward through-balls).
+  const POSITIONS = [
+    { grp:'GK',  id:'gk',    abbr:'GK',  label:'Goalkeeper',            shootMult:0.30, passMult:0.60, dribbleMult:0.20, runQuality:0.30, pressAgg:0.70 },
+    { grp:'GK',  id:'sk',    abbr:'SK',  label:'Sweeper-Keeper',        shootMult:0.30, passMult:1.15, dribbleMult:0.50, runQuality:0.40, pressAgg:0.85 },
+    { grp:'DEF', id:'cb',    abbr:'CB',  label:'Center-Back',           shootMult:0.60, passMult:0.75, dribbleMult:0.40, runQuality:0.50, pressAgg:1.05 },
+    { grp:'DEF', id:'bpd',   abbr:'BPD', label:'Ball-Playing Defender', shootMult:0.70, passMult:1.20, dribbleMult:0.75, runQuality:0.60, pressAgg:0.95 },
+    { grp:'DEF', id:'fb',    abbr:'FB',  label:'Full-Back',             shootMult:0.65, passMult:0.85, dribbleMult:0.70, runQuality:0.55, pressAgg:1.00 },
+    { grp:'DEF', id:'wb',    abbr:'WB',  label:'Wing-Back',             shootMult:0.75, passMult:0.95, dribbleMult:1.05, runQuality:0.95, pressAgg:0.85 },
+    { grp:'DEF', id:'ifb',   abbr:'IFB', label:'Inverted Full-Back',    shootMult:0.65, passMult:1.10, dribbleMult:0.70, runQuality:0.60, pressAgg:0.95 },
+    { grp:'MID', id:'dm',    abbr:'DM',  label:'Defensive Mid / Anchor',shootMult:0.60, passMult:1.00, dribbleMult:0.55, runQuality:0.45, pressAgg:1.10 },
+    { grp:'MID', id:'dlp',   abbr:'DLP', label:'Deep-Lying Playmaker',  shootMult:0.65, passMult:1.30, dribbleMult:0.60, runQuality:0.50, pressAgg:0.90 },
+    { grp:'MID', id:'vol',   abbr:'VOL', label:'Inverted Mid / Volante',shootMult:0.80, passMult:0.95, dribbleMult:0.85, runQuality:0.85, pressAgg:1.25 },
+    { grp:'MID', id:'cm',    abbr:'CM',  label:'Box-to-Box Midfielder', shootMult:0.90, passMult:1.00, dribbleMult:0.95, runQuality:0.85, pressAgg:1.10 },
+    { grp:'MID', id:'am',    abbr:'AM',  label:'Playmaker (No.10)',     shootMult:1.10, passMult:1.15, dribbleMult:0.95, runQuality:0.90, pressAgg:0.75 },
+    { grp:'FWD', id:'rw',    abbr:'W',   label:'Traditional Winger',    shootMult:0.90, passMult:0.85, dribbleMult:1.25, runQuality:0.95, pressAgg:0.70 },
+    { grp:'FWD', id:'if_',   abbr:'IF',  label:'Inside Forward',        shootMult:1.15, passMult:0.90, dribbleMult:1.15, runQuality:1.00, pressAgg:0.70 },
+    { grp:'FWD', id:'raum',  abbr:'RD',  label:'Raumdeuter',            shootMult:1.05, passMult:0.70, dribbleMult:0.75, runQuality:1.30, pressAgg:0.50, offsideRisk:true },
+    { grp:'FWD', id:'st',    abbr:'ST',  label:'Target Man',            shootMult:1.10, passMult:0.70, dribbleMult:0.60, runQuality:0.85, pressAgg:0.80 },
+    { grp:'FWD', id:'poach', abbr:'PO',  label:'Poacher',               shootMult:1.30, passMult:0.60, dribbleMult:0.70, runQuality:1.20, pressAgg:0.60, offsideRisk:true },
+    { grp:'FWD', id:'f9',    abbr:'F9',  label:'False Nine',            shootMult:0.85, passMult:1.15, dribbleMult:0.90, runQuality:0.80, pressAgg:0.70 }
+  ];
+  const POS_BY_ID = Object.fromEntries(POSITIONS.map(p=>[p.id,p]));
+  const DEFAULT_POS = { me:'cm', teammate:'cm', opponent:'cb' };
+
+  function getProfile(positionId){ return POS_BY_ID[positionId] || POS_BY_ID.cm; }
+
+  function populatePositionSelect(selectId, defaultId){
+    const sel = document.getElementById(selectId);
+    let lastGrp = null;
+    let optgroup = null;
+    POSITIONS.forEach(p=>{
+      if(p.grp !== lastGrp){
+        optgroup = document.createElement('optgroup');
+        optgroup.label = p.grp;
+        sel.appendChild(optgroup);
+        lastGrp = p.grp;
+      }
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.abbr + ' — ' + p.label;
+      optgroup.appendChild(opt);
+    });
+    sel.value = defaultId;
+  }
+  populatePositionSelect('posMe', DEFAULT_POS.me);
+  populatePositionSelect('posTeammate', DEFAULT_POS.teammate);
+  populatePositionSelect('posOpponent', DEFAULT_POS.opponent);
+
+  // ---- offside (Part 2, Rule 1) ----
+  // Receiver can't have a scoring-relevant position closer to the opponent goal line (ym=0)
+  // than both the ball and the second-to-last opponent (goalkeeper included in that count).
+  function secondLastOpponentY(opponents){
+    if(!opponents.length) return -Infinity; // no defenders at all — nothing to be offside against
+    const sorted = [...opponents].sort((a,b)=>a.ym-b.ym);
+    return sorted.length > 1 ? sorted[1].ym : sorted[0].ym;
+  }
+  function isOffside(receiverPos, ballPos, opponents){
+    const limitY = Math.min(ballPos.ym, secondLastOpponentY(opponents));
+    return receiverPos.ym < limitY - 0.3;
+  }
+
+  // ---- stamina decay (Part 2, Rule 3) ----
+  // Each token tracks cumulative distance covered this session. Past ~55m of covered ground
+  // stamina drops below the 60% threshold and passing/pace/positioning are cut by 15%.
+  function staminaPct(record){
+    const covered = record.distanceRun || 0;
+    return Math.max(20, Math.min(100, 100 - covered * 1.35));
+  }
+  function staminaMult(record){
+    return staminaPct(record) < 60 ? 0.85 : 1.0;
+  }
+  function addDistance(record, meters){
+    record.distanceRun = (record.distanceRun || 0) + meters;
+    updateStaminaBadge(record);
+  }
+  function updateStaminaBadge(record){
+    if(!record.el) return;
+    let badge = record.el.querySelector('.token-stamina');
+    if(!badge){
+      badge = document.createElement('div');
+      badge.className = 'token-stamina';
+      record.el.appendChild(badge);
+    }
+    const pct = Math.round(staminaPct(record));
+    badge.textContent = pct + '%';
+    badge.classList.remove('high','mid','low');
+    badge.classList.add(pct >= 75 ? 'high' : pct >= 60 ? 'mid' : 'low');
+  }
+
+  // ---- discipline: 2 yellows = red (Part 2, Rule 2) ----
+  const cardCounts = new Map(); // token id -> yellow card count
+
+  const startScreen = document.getElementById('startScreen');
+  const boardScreen = document.getElementById('boardScreen');
+  const diffTag = document.getElementById('diffTag');
+
+  function applyDifficultyTag(){
+    const d = DIFFICULTIES[currentDifficulty];
+    diffTag.textContent = d.label;
+    diffTag.style.setProperty('--diff-color', d.color);
+  }
+
+  function goToBoard(difficulty){
+    currentDifficulty = difficulty;
+    applyDifficultyTag();
+    startScreen.style.display = 'none';
+    boardScreen.style.display = 'block';
+    window.scrollTo(0,0);
+  }
+
+  document.querySelectorAll('.diff-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToBoard(btn.dataset.difficulty));
+  });
+
+  diffTag.addEventListener('click', ()=>{
+    boardScreen.style.display = 'none';
+    startScreen.style.display = 'flex';
+    window.scrollTo(0,0);
+  });
+
+  // ---- pitch stripes ----
+  const stripesGroup = document.getElementById('stripes');
+  const stripeCount = 12, stripeHeight = 1050/stripeCount;
+  for(let i=0;i<stripeCount;i++){
+    const r = document.createElementNS(NS,'rect');
+    r.setAttribute('x',0); r.setAttribute('y', i*stripeHeight);
+    r.setAttribute('width',680); r.setAttribute('height', stripeHeight);
+    r.setAttribute('fill', i%2===0 ? 'var(--pitch-light)' : 'var(--pitch-dark)');
+    stripesGroup.appendChild(r);
+  }
+
+  // ---- state ----
+  const stage = document.getElementById('pitchStage');
+  const tokenLayer = document.getElementById('tokenLayer');
+  const moveText = document.getElementById('moveText');
+  const movePanel = document.getElementById('movePanel');
+  const clearBtn = document.getElementById('clearBtn');
+  const ball = document.getElementById('ball');
+  const goalFlash = document.getElementById('goalFlash');
+  const playBtn = document.getElementById('playBtn');
+  let tokens = []; // {id, type, xPct, yPct, el}
+  let selectedId = null;
+  let isPlaying = false;
+  let mePlaced = false;
+
+  // ---- assist / shot flight-line drawing (telestrator overlay, drawn inside the pitch svg) ----
+  const lineLayer = document.getElementById('lineLayer');
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // stage % (0-100) -> the pitch svg's own viewBox coordinates (-25 -30 730 1110)
+  function svgPtFromPct(xPct, yPct){
+    return { x: -25 + (xPct/100)*730, y: -30 + (yPct/100)*1110 };
+  }
+
+  function clearFlightLines(){
+    lineLayer.innerHTML = '';
+  }
+
+  // type: 'assist-line' (flowing dashed pass arrow) or 'shot-line' (solid arrow that draws itself in)
+  function drawFlightLine(x1Pct, y1Pct, x2Pct, y2Pct, type, duration, extraClass){
+    const p1 = svgPtFromPct(x1Pct, y1Pct);
+    const p2 = svgPtFromPct(x2Pct, y2Pct);
+    const dx = p2.x-p1.x, dy = p2.y-p1.y;
+    const segLen = Math.hypot(dx,dy) || 1;
+    const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+    const nx = -dy/segLen, ny = dx/segLen;
+    const curveAmt = (type==='assist-line' ? 24 : 10) * (Math.random()<0.5 ? 1 : -1);
+    const cx = mx + nx*curveAmt, cy = my + ny*curveAmt;
+
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`);
+    path.setAttribute('class', 'flight-path ' + type + (extraClass ? ' '+extraClass : ''));
+    const markerId = type==='assist-line' ? 'arrowAssist' : (extraClass==='miss-line' ? 'arrowShotMiss' : 'arrowShot');
+    path.setAttribute('marker-end', `url(#${markerId})`);
+    lineLayer.appendChild(path);
+
+    if(type === 'shot-line'){
+      const length = path.getTotalLength();
+      path.style.strokeDasharray = length;
+      path.style.strokeDashoffset = length;
+      path.style.opacity = '1';
+      path.getBoundingClientRect(); // force reflow so the transition applies
+      path.style.transition = `stroke-dashoffset ${duration}ms ease-out`;
+      requestAnimationFrame(()=>{ path.style.strokeDashoffset = '0'; });
+    } else {
+      path.style.opacity = '0';
+      requestAnimationFrame(()=>{
+        path.style.transition = 'opacity 200ms ease';
+        path.style.opacity = '1';
+      });
+    }
+
+    const holdTime = duration + 900;
+    setTimeout(()=>{
+      path.style.transition = 'opacity 500ms ease';
+      path.style.opacity = '0';
+      setTimeout(()=>{ path.remove(); }, 520);
+    }, holdTime);
+
+    return path;
+  }
+
+  function setMeTrayEnabled(enabled){
+    mePlaced = !enabled;
+    document.getElementById('trayMe').classList.toggle('disabled', !enabled);
+  }
+
+  const BORDER_COLOR = { me:'var(--me)', teammate:'var(--teammate)', opponent:'var(--opponent)' };
+
+  const STICK_SVG = (color) => `<svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2"/><line x1="12" y1="8" x2="12" y2="15"/><line x1="12" y1="10" x2="7" y2="13"/><line x1="12" y1="10" x2="17" y2="13"/><line x1="12" y1="15" x2="8" y2="21"/><line x1="12" y1="15" x2="16" y2="21"/></svg>`;
+
+  function clampPct(v){ return Math.max(2, Math.min(98, v)); }
+
+  function pointerToPct(clientX, clientY){
+    const rect = stage.getBoundingClientRect();
+    const xPct = ((clientX - rect.left) / rect.width) * 100;
+    const yPct = ((clientY - rect.top) / rect.height) * 100;
+    return { xPct: clampPct(xPct), yPct: clampPct(yPct) };
+  }
+
+  function createTokenEl(type, positionId){
+    const el = document.createElement('div');
+    el.className = 'token ' + type;
+    const abbr = getProfile(positionId).abbr;
+    el.innerHTML = STICK_SVG(getComputedStyleColor(type)) + '<div class="token-del">&times;</div>' +
+      '<div class="token-pos">'+abbr+'</div>';
+    tokenLayer.appendChild(el);
+    return el;
+  }
+  function getComputedStyleColor(type){
+    if(type==='me') return '#E8B33D';
+    if(type==='teammate') return '#5B8DBE';
+    return '#C15C4E';
+  }
+
+  function setTokenPos(el, xPct, yPct){
+    el.style.left = xPct + '%';
+    el.style.top = yPct + '%';
+  }
+
+  function deselectAll(){
+    tokens.forEach(t => t.el.classList.remove('selected'));
+    selectedId = null;
+  }
+
+  function removeToken(id){
+    const t = tokens.find(t=>t.id===id);
+    if(!t) return;
+    t.el.remove();
+    tokens = tokens.filter(t=>t.id!==id);
+    if(selectedId===id) selectedId=null;
+    if(t.type==='me'){
+      setMeTrayEnabled(true);
+      ball.classList.remove('visible');
+      playBtn.style.display = 'none';
+    }
+  }
+
+  clearBtn.addEventListener('click', ()=>{
+    tokens.forEach(t=>t.el.remove());
+    tokens = [];
+    selectedId = null;
+    cardCounts.clear();
+    moveText.textContent = 'Drag a player onto the pitch to get started.';
+    moveText.className = 'move-placeholder';
+    movePanel.style.borderLeftColor = 'var(--me)';
+    setMeTrayEnabled(true);
+    ball.classList.remove('visible');
+    playBtn.style.display = 'none';
+    clearFlightLines();
+  });
+
+  // ---- dragging a NEW token from the tray ----
+  function bindTrayItem(elId, type, posSelectId){
+    const trayEl = document.getElementById(elId);
+    trayEl.addEventListener('pointerdown', (e)=>{
+      if(type==='me' && mePlaced) return;
+      e.preventDefault();
+      if(type==='me') setMeTrayEnabled(false);
+      const id = 't'+Date.now()+Math.random().toString(36).slice(2,6);
+      const positionId = document.getElementById(posSelectId).value || DEFAULT_POS[type];
+      const tokenEl = createTokenEl(type, positionId);
+      tokenEl.classList.add('dragging');
+      const pos = pointerToPct(e.clientX, e.clientY);
+      setTokenPos(tokenEl, pos.xPct, pos.yPct);
+      const record = { id, type, position: positionId, xPct: pos.xPct, yPct: pos.yPct, el: tokenEl, distanceRun: 0 };
+      tokens.push(record);
+      updateStaminaBadge(record);
+
+      function onMove(ev){
+        const p = pointerToPct(ev.clientX, ev.clientY);
+        record.xPct = p.xPct; record.yPct = p.yPct;
+        setTokenPos(tokenEl, p.xPct, p.yPct);
+      }
+      function onUp(ev){
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        tokenEl.classList.remove('dragging');
+        bindTokenDrag(record);
+        bindTokenTap(record);
+        announceMove(record);
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp, {once:true});
+    });
+  }
+
+  // ---- dragging an EXISTING token to reposition ----
+  function bindTokenDrag(record){
+    record.el.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      record.el.style.transitionDuration = '';
+      record.el.classList.remove('animating');
+      record.el.classList.add('dragging');
+      record.el.setPointerCapture(e.pointerId);
+
+      function onMove(ev){
+        const p = pointerToPct(ev.clientX, ev.clientY);
+        record.xPct = p.xPct; record.yPct = p.yPct;
+        setTokenPos(record.el, p.xPct, p.yPct);
+      }
+      function onUp(ev){
+        record.el.removeEventListener('pointermove', onMove);
+        record.el.removeEventListener('pointerup', onUp);
+        record.el.classList.remove('dragging');
+        announceMove(record);
+      }
+      record.el.addEventListener('pointermove', onMove);
+      record.el.addEventListener('pointerup', onUp, {once:true});
+    });
+  }
+
+  function bindTokenTap(record){
+    let downX, downY, moved=false;
+    record.el.addEventListener('pointerdown',(e)=>{ downX=e.clientX; downY=e.clientY; moved=false; });
+    record.el.addEventListener('pointermove',(e)=>{
+      if(Math.abs(e.clientX-downX)>4 || Math.abs(e.clientY-downY)>4) moved=true;
+    });
+    record.el.addEventListener('pointerup',(e)=>{
+      if(moved) return;
+      const wasSelected = record.el.classList.contains('selected');
+      deselectAll();
+      if(!wasSelected){ record.el.classList.add('selected'); selectedId = record.id; }
+    });
+    record.el.querySelector('.token-del').addEventListener('pointerdown',(e)=>{
+      e.stopPropagation();
+    });
+    record.el.querySelector('.token-del').addEventListener('click',(e)=>{
+      e.stopPropagation();
+      removeToken(record.id);
+    });
+  }
+
+  bindTrayItem('trayOpponent','opponent','posOpponent');
+  bindTrayItem('trayMe','me','posMe');
+  bindTrayItem('trayTeammate','teammate','posTeammate');
+
+  stage.addEventListener('pointerdown', (e)=>{
+    if(e.target===stage || e.target.tagName==='svg' || e.target.tagName==='rect' || e.target.tagName==='circle' || e.target.tagName==='line' || e.target.tagName==='path' || e.target.tagName==='g'){
+      deselectAll();
+    }
+  });
+
+  // ---- next-move heuristics ----
+  function metersFromPct(record){
+    const xm = (record.xPct/100)*68;
+    const ym = (record.yPct/100)*105;
+    return {xm, ym};
+  }
+  function dist(a,b){ return Math.hypot(a.xm-b.xm, a.ym-b.ym); }
+
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  // ---- ball-carrier ("me") decision engine: shoot / pass / dribble ----
+  const GOAL = {xm:34, ym:0};
+  const POST_L = {xm:30.34, ym:0};
+  const POST_R = {xm:37.66, ym:0};
+
+  function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+
+  function pointToSegmentDist(p, a, b){
+    const abx=b.xm-a.xm, aby=b.ym-a.ym;
+    const apx=p.xm-a.xm, apy=p.ym-a.ym;
+    const abLenSq = abx*abx+aby*aby;
+    let t = abLenSq===0 ? 0 : (apx*abx+apy*aby)/abLenSq;
+    t = Math.max(0, Math.min(1, t));
+    const cx=a.xm+abx*t, cy=a.ym+aby*t;
+    return Math.hypot(p.xm-cx, p.ym-cy);
+  }
+
+  function nearestDist(pos, arr){
+    if(!arr.length) return Infinity;
+    return Math.min(...arr.map(o=>dist(pos,o)));
+  }
+
+  function angleToGoal(pos){
+    const v1 = {x:POST_L.xm-pos.xm, y:POST_L.ym-pos.ym};
+    const v2 = {x:POST_R.xm-pos.xm, y:POST_R.ym-pos.ym};
+    const dotP = v1.x*v2.x + v1.y*v2.y;
+    const detP = v1.x*v2.y - v1.y*v2.x;
+    return Math.abs(Math.atan2(detP, dotP));
+  }
+
+  function blockingFactor(pos, opponents){
+    const blockers = opponents.filter(o => o.ym <= pos.ym + 1);
+    if(!blockers.length) return 1;
+    const d = Math.min(...blockers.map(o=>pointToSegmentDist(o, pos, GOAL)));
+    return clamp01(d/4);
+  }
+
+  function evalShoot(pos, opponents, carrierRecord){
+    const distToGoal = dist(pos, GOAL);
+    const angle = angleToGoal(pos);
+    const nearestOpp = nearestDist(pos, opponents);
+    const block = blockingFactor(pos, opponents);
+    const distFactor = clamp01(1 - distToGoal/38);
+    const angleFactor = clamp01(angle/0.55);
+    const pressureFactor = clamp01(nearestOpp/8);
+    let score = clamp01(0.42*distFactor + 0.30*angleFactor + 0.20*block + 0.08*pressureFactor);
+    if(carrierRecord){
+      const profile = getProfile(carrierRecord.position);
+      score = clamp01(score * profile.shootMult * staminaMult(carrierRecord));
+    }
+    return { score, distToGoal, angle, nearestOpp, block, opponents };
+  }
+
+  function evalPass(pos, teammates, opponents, carrierRecord){
+    if(!teammates.length) return { score:0, teammate:null };
+    let best = null;
+    const myShotChance = evalShoot(pos, opponents, carrierRecord).score;
+    const passerProfile = carrierRecord ? getProfile(carrierRecord.position) : getProfile();
+    teammates.forEach(t=>{
+      const passDist = dist(pos, t);
+      const forwardness = pos.ym - t.ym; // positive = teammate more advanced toward goal
+      const advancementFactor = clamp01((forwardness+6)/26);
+      const laneOpp = opponents.length ? Math.min(...opponents.map(o=>pointToSegmentDist(o, pos, t))) : Infinity;
+      const laneClearFactor = laneOpp===Infinity ? 1 : clamp01(laneOpp/4);
+      const nearestOppToTeammate = nearestDist(t, opponents);
+      const spaceFactor = nearestOppToTeammate===Infinity ? 1 : clamp01(nearestOppToTeammate/7); // how open they are
+      const distFactor = clamp01(1 - passDist/45);
+
+      // look ahead: if they received it and made their run, how good a shooting chance would that create?
+      const targetProfile = getProfile(t.position);
+      const runPreview = computeTeammateRun(t, opponents, targetProfile);
+      const chanceFactor = clamp01(evalShoot(runPreview, opponents).score * targetProfile.runQuality);
+
+      let score = 0.32*spaceFactor + 0.20*advancementFactor + 0.16*laneClearFactor + 0.12*distFactor + 0.20*chanceFactor;
+      score *= passerProfile.passMult;
+      if(carrierRecord) score *= staminaMult(carrierRecord);
+
+      // clearly reward picking out the open player when it sets up a real chance
+      if(spaceFactor > 0.55 && chanceFactor > myShotChance + 0.15){
+        score *= 1.18;
+      }
+
+      // offside (Match Law, Part 2 Rule 1): a run that's already beyond the ball and the
+      // second-to-last opponent at the moment of the pass is heavily discounted — positions
+      // that live on the shoulder of the last defender (Poacher, Raumdeuter) treat it as a
+      // calculated risk rather than a dealbreaker.
+      const offside = isOffside(runPreview, pos, opponents);
+      if(offside) score *= targetProfile.offsideRisk ? 0.5 : 0.15;
+
+      score = clamp01(score);
+
+      if(!best || score>best.score) best = { score, teammate:t, passDist, advancementFactor, laneClearFactor, spaceFactor, chanceFactor, offside };
+    });
+    return best;
+  }
+
+  function evalDribble(pos, opponents, carrierRecord){
+    const nearestOpp = nearestDist(pos, opponents);
+    const spaceFactor = nearestOpp===Infinity ? 1 : clamp01(nearestOpp/9);
+    const aheadOpponents = opponents.filter(o => o.ym < pos.ym+3 && o.ym > pos.ym-12 && Math.abs(o.xm-pos.xm)<8);
+    const forwardOpenFactor = clamp01(1 - aheadOpponents.length*0.3);
+    const distToGoal = dist(pos, GOAL);
+    const roomFactor = clamp01(distToGoal/55);
+    let score = clamp01(0.5*spaceFactor + 0.3*forwardOpenFactor + 0.2*roomFactor);
+    if(carrierRecord){
+      const profile = getProfile(carrierRecord.position);
+      score = clamp01(score * profile.dribbleMult * staminaMult(carrierRecord));
+    }
+    return { score, nearestOpp, distToGoal };
+  }
+
+  function shootDetail(s, pos){
+    let side;
+    const nearOpp = s.opponents.length ? s.opponents.reduce((a,b)=>dist(pos,a)<dist(pos,b)?a:b) : null;
+    if(nearOpp){
+      side = nearOpp.xm < pos.xm ? 'far side, away from the defender' : 'far side, away from the defender';
+    } else {
+      side = pos.xm < 34 ? 'far corner to your right' : 'far corner to your left';
+    }
+    let placement;
+    if(s.distToGoal < 9){
+      placement = pick(["low, near post, side-netting","hit it early and low, near post","first-time, near post, no backlift"]);
+    } else if(s.nearestOpp < 3){
+      placement = pick(["snap shot right now before the defender closes","early strike, don't take a touch"]);
+    } else if(s.distToGoal > 20){
+      placement = pick(["dip it into the top corner","curl it for the far top corner","go with power for the top corner"]);
+    } else {
+      placement = pick([`place it into the ${side}`, `low and hard into the ${side}`, `curl it toward the ${side}`]);
+    }
+    return `<strong>SHOOT</strong> — ${placement}.`;
+  }
+
+  function passDetail(p){
+    if(!p.teammate) return `<strong>PASS</strong> — no teammate in support right now.`;
+    let type;
+    if(p.chanceFactor > 0.55 && p.spaceFactor > 0.55){
+      type = pick(["find the open player — that's a big chance","slide it into the space, they're clean through","pick out the run, that opens up a clear sight of goal"]);
+    } else if(p.advancementFactor > 0.65){
+      type = pick(["slide a through ball into the run","play it into the space in behind","thread it through for the run"]);
+    } else if(p.laneClearFactor < 0.4){
+      type = pick(["firm, driven pass — the lane's tight","hit it first-time, no time to think"]);
+    } else if(p.passDist < 10){
+      type = pick(["quick five-yard pass, one-two","short pass to feet, look for the return"]);
+    } else {
+      type = pick(["switch it across to your open teammate","find your teammate with a driven pass","play it wide to space"]);
+    }
+    return `<strong>PASS</strong> — ${type}.`;
+  }
+
+  function dribbleDetail(d){
+    if(d.nearestOpp === Infinity){
+      return `<strong>DRIBBLE</strong> — ${pick(["open space ahead, drive forward","nobody near you, carry it forward"])}.`;
+    }
+    let skill;
+    if(d.nearestOpp < 2.5){
+      skill = pick(["nutmeg attempt — the gap's on","tight body feint, roll it past them","drag-back and spin away"]);
+    } else if(d.nearestOpp < 5){
+      skill = pick(["step-over and cut inside","body feint then burst past","Cruyff turn to spin away"]);
+    } else if(d.nearestOpp < 9){
+      skill = pick(["shoulder drop and accelerate past","change of pace to beat them"]);
+    } else {
+      skill = pick(["open space ahead, drive forward","carry it forward, no pressure yet"]);
+    }
+    return `<strong>DRIBBLE</strong> — ${skill}.`;
+  }
+
+  function decideAction(pos, opponents, teammates, carrierRecord){
+    const shoot = evalShoot(pos, opponents, carrierRecord);
+    const pass = evalPass(pos, teammates, opponents, carrierRecord);
+    const dribble = evalDribble(pos, opponents, carrierRecord);
+
+    const raw = { shoot: shoot.score, pass: pass.score, dribble: dribble.score };
+    const sum = (raw.shoot + raw.pass + raw.dribble) || 1;
+    const pct = {
+      shoot: Math.round(raw.shoot/sum*100),
+      pass: Math.round(raw.pass/sum*100),
+      dribble: Math.round(raw.dribble/sum*100)
+    };
+    const top = Object.keys(pct).reduce((a,b)=> pct[a]>=pct[b] ? a : b);
+    pct[top] += 100 - (pct.shoot + pct.pass + pct.dribble);
+
+    const winner = Object.keys(raw).reduce((a,b)=> raw[a]>=raw[b] ? a : b);
+    let detail;
+    if(winner==='shoot') detail = shootDetail(shoot, pos);
+    else if(winner==='pass') detail = passDetail(pass);
+    else detail = dribbleDetail(dribble);
+
+    return { winner, pct, detail };
+  }
+
+  function renderDecisionHTML(result){
+    const rows = ['shoot','pass','dribble'].map(k=>{
+      const label = k.charAt(0).toUpperCase()+k.slice(1);
+      return `<div class="prob-row"><span class="prob-name">${label}</span><div class="prob-track"><div class="prob-fill prob-${k}" style="width:${result.pct[k]}%"></div></div><span class="prob-pct">${result.pct[k]}%</span></div>`;
+    }).join('');
+    return `<div class="decision-line">${result.detail}</div><div class="prob-list">${rows}</div>`;
+  }
+
+  // ---- animated playback: moves players on the board with reacting defenders and real risk of failure ----
+  function delay(ms){ return new Promise(res=>setTimeout(res, ms)); }
+
+  function pctFromMeters(pos){
+    return {
+      xPct: clampPct((pos.xm/68)*100),
+      yPct: clampPct((pos.ym/105)*100)
+    };
+  }
+
+  // speed scales with distance travelled — short balls are quick, long ones take longer
+  function durationFor(distMeters){
+    return Math.max(320, Math.min(950, 260 + distMeters*13));
+  }
+
+  function advanceDribble(pos, opponents){
+    const forwardStep = 7 + Math.random()*5;
+    let newY = Math.max(3, pos.ym - forwardStep);
+    let newX = pos.xm;
+    const nearOpp = opponents.length ? opponents.reduce((a,b)=>dist(pos,a)<dist(pos,b)?a:b) : null;
+    if(nearOpp && dist(pos,nearOpp) < 12){
+      const lateral = 3 + Math.random()*3;
+      newX = pos.xm + (nearOpp.xm < pos.xm ? lateral : -lateral);
+    }
+    newX = Math.max(4, Math.min(64, newX));
+    return {xm:newX, ym:newY};
+  }
+
+  function computeTeammateRun(pos, opponents, profile){
+    const runQuality = profile ? profile.runQuality : 1;
+    const forwardStep = (5 + Math.random()*6) * runQuality;
+    let newY = Math.max(3, pos.ym - forwardStep);
+    let newX = pos.xm;
+    const nearOpp = opponents.length ? opponents.reduce((a,b)=>dist(pos,a)<dist(pos,b)?a:b) : null;
+    if(nearOpp && dist(pos,nearOpp) < 10){
+      const lateral = 2 + Math.random()*4;
+      newX = pos.xm + (nearOpp.xm < pos.xm ? lateral : -lateral);
+    } else {
+      newX = pos.xm + (Math.random()*8 - 4);
+    }
+    newX = Math.max(4, Math.min(64, newX));
+    return {xm:newX, ym:newY};
+  }
+
+  // moves every teammate token except excludeId a little, to simulate off-the-ball runs
+  async function moveSupportingTeammates(opponents, excludeId, duration){
+    const supporters = tokens.filter(t=>t.type==='teammate' && t.id!==excludeId);
+    if(!supporters.length) return;
+    supporters.forEach(t=>{
+      const tPos = metersFromPct(t);
+      const newPos = computeTeammateRun(tPos, opponents, getProfile(t.position));
+      const newPct = pctFromMeters(newPos);
+      t.el.style.transitionDuration = duration+'ms';
+      t.el.classList.add('animating');
+      setTokenPos(t.el, newPct.xPct, newPct.yPct);
+      t.xPct = newPct.xPct; t.yPct = newPct.yPct;
+      addDistance(t, dist(tPos, newPos));
+    });
+    await delay(duration);
+    supporters.forEach(t=>{ t.el.classList.remove('animating'); t.el.style.transitionDuration = ''; });
+  }
+
+  // defenders close down whoever currently has the ball — real reactive pressure, not static markers
+  async function moveOpponentsReacting(carrierPos, duration){
+    const defenders = tokens.filter(t=>t.type==='opponent');
+    if(!defenders.length) return;
+    const [minStep, maxStep] = DIFFICULTIES[currentDifficulty].pressStep;
+    defenders.forEach(o=>{
+      const oPos = metersFromPct(o);
+      const aggression = getProfile(o.position).pressAgg * staminaMult(o);
+      const stepFrac = clamp01((minStep + Math.random()*(maxStep-minStep)) * aggression); // gap closed each step: difficulty x position x fatigue
+      let newXm = oPos.xm + (carrierPos.xm - oPos.xm) * stepFrac;
+      let newYm = oPos.ym + (carrierPos.ym - oPos.ym) * stepFrac;
+      newXm = Math.max(2, Math.min(66, newXm));
+      newYm = Math.max(2, Math.min(103, newYm));
+      const newPct = pctFromMeters({xm:newXm, ym:newYm});
+      o.el.style.transitionDuration = duration+'ms';
+      o.el.classList.add('animating');
+      setTokenPos(o.el, newPct.xPct, newPct.yPct);
+      o.xPct = newPct.xPct; o.yPct = newPct.yPct;
+      addDistance(o, dist(oPos, {xm:newXm, ym:newYm}));
+    });
+    await delay(duration);
+    defenders.forEach(o=>{ o.el.classList.remove('animating'); o.el.style.transitionDuration = ''; });
+  }
+
+  async function showGoalFlash(){
+    goalFlash.classList.remove('show');
+    void goalFlash.offsetWidth; // restart animation
+    goalFlash.classList.add('show');
+    await delay(900);
+    goalFlash.classList.remove('show');
+  }
+
+  function moveBallTo(xPct, yPct, duration){
+    ball.style.transitionDuration = duration+'ms';
+    setTokenPos(ball, xPct, yPct);
+  }
+
+  function outcomeHTML(label, text){
+    return `<div class="decision-line"><strong>${label}</strong> — ${text}</div>`;
+  }
+
+  async function playSequence(){
+    if(isPlaying) return;
+    const meRecord = tokens.find(t=>t.type==='me');
+    if(!meRecord) return;
+
+    isPlaying = true;
+    playBtn.disabled = true;
+    clearFlightLines();
+
+    ball.classList.add('visible');
+    ball.style.transitionDuration = '150ms';
+    setTokenPos(ball, meRecord.xPct, meRecord.yPct);
+    await delay(150);
+
+    let carrierRecord = meRecord; // whichever token currently has the ball ('me' or a teammate)
+    const usedTeammates = new Set();
+    const maxSteps = 5;
+    const diff = DIFFICULTIES[currentDifficulty];
+
+    for(let step=0; step<maxSteps; step++){
+      const carrierPos = metersFromPct(carrierRecord);
+      const opponents = tokens.filter(t=>t.type==='opponent').map(t=>({...t, ...metersFromPct(t)}));
+      const teammates = tokens.filter(t=>t.type==='teammate' && t.id!==carrierRecord.id && !usedTeammates.has(t.id)).map(t=>({...t, ...metersFromPct(t)}));
+
+      const forceShoot = step === maxSteps-1;
+      const shootEval = evalShoot(carrierPos, opponents, carrierRecord);
+      let winner, passEval;
+      if(forceShoot){
+        winner = 'shoot';
+      } else {
+        passEval = evalPass(carrierPos, teammates, opponents, carrierRecord);
+        const dribbleEval = evalDribble(carrierPos, opponents, carrierRecord);
+        const raw = { shoot: shootEval.score, pass: passEval.score, dribble: dribbleEval.score };
+        winner = Object.keys(raw).reduce((a,b)=> raw[a]>=raw[b] ? a : b);
+      }
+
+      // ---- SHOOT: real chance of a save or a miss, not a guaranteed goal ----
+      if(winner === 'shoot'){
+        moveText.innerHTML = `<div class="decision-line">${shootDetail(shootEval, carrierPos)}</div>`;
+        const shotDuration = durationFor(shootEval.distToGoal);
+
+        // decide the outcome up front so the shot line is drawn to where the ball actually ends up
+        const goalProb = clamp01(0.12 + shootEval.score*0.78 + diff.goalBonus);
+        const isGoal = Math.random() < goalProb;
+        const saved = !isGoal && Math.random() < 0.6;
+        let targetXPct, targetYPct;
+        if(isGoal){
+          targetXPct = 50; targetYPct = 2;
+        } else {
+          targetXPct = clampPct(50 + (Math.random()*24 - 12));
+          targetYPct = saved ? 2 : clampPct(1 + Math.random()*3);
+        }
+
+        drawFlightLine(carrierRecord.xPct, carrierRecord.yPct, targetXPct, targetYPct, 'shot-line', shotDuration, isGoal ? '' : 'miss-line');
+        moveOpponentsReacting(carrierPos, shotDuration);
+        moveBallTo(targetXPct, targetYPct, shotDuration);
+        await delay(shotDuration);
+
+        if(isGoal){
+          await showGoalFlash();
+          moveText.innerHTML = outcomeHTML('GOAL! ⚽', 'top bins, keeper had no chance.');
+          movePanel.style.borderLeftColor = BORDER_COLOR.me;
+        } else if(saved){
+          moveText.innerHTML = outcomeHTML('SAVED', pick(["keeper gets down well and holds it.","strong hand, pushed behind for a corner.","straight at the keeper — comfortable save."]));
+          movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+        } else {
+          moveText.innerHTML = outcomeHTML('OFF TARGET', pick(["drags it just wide of the far post.","rushed it — over the bar.","too much on it, flies past the post."]));
+          movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+        }
+        break;
+      }
+
+      // ---- PASS: can be cut out if the lane is tight, or called back for offside ----
+      else if(winner === 'pass'){
+        if(!passEval) passEval = evalPass(carrierPos, teammates, opponents, carrierRecord);
+        const targetCopy = passEval.teammate;
+        if(!targetCopy){ // safety fallback — no one to pass to, shoot instead
+          moveText.innerHTML = `<div class="decision-line">${shootDetail(shootEval, carrierPos)}</div>`;
+          const d = durationFor(shootEval.distToGoal);
+          drawFlightLine(carrierRecord.xPct, carrierRecord.yPct, 50, 2, 'shot-line', d);
+          moveBallTo(50, 2, d);
+          await delay(d);
+          await showGoalFlash();
+          moveText.innerHTML = outcomeHTML('GOAL! ⚽', 'no one to pass to — went for goal instead.');
+          break;
+        }
+
+        const targetRecord = tokens.find(t=>t.id===targetCopy.id);
+        const targetProfile = getProfile(targetRecord.position);
+        const passDist = passEval.passDist;
+        const passDuration = durationFor(passDist);
+
+        // the receiving teammate makes a run into space to meet the pass
+        const targetPosM = metersFromPct(targetRecord);
+        const runPos = computeTeammateRun(targetPosM, opponents, targetProfile);
+        const runPct = pctFromMeters(runPos);
+
+        // offside is judged the instant the ball is played, against the defensive line at that moment
+        if(isOffside(runPos, carrierPos, opponents)){
+          moveText.innerHTML = `<div class="decision-line">${passDetail(passEval)}</div>`;
+          const flagDuration = durationFor(passDist);
+          drawFlightLine(carrierRecord.xPct, carrierRecord.yPct, runPct.xPct, runPct.yPct, 'assist-line', flagDuration);
+          moveBallTo(runPct.xPct, runPct.yPct, flagDuration);
+          await delay(flagDuration);
+          moveText.innerHTML = outcomeHTML('OFFSIDE', targetProfile.offsideRisk
+            ? pick(["timed the run a fraction early — flag's up.","gambled on the shoulder of the last man and got caught."])
+            : pick(["strayed beyond the last defender — flag goes up.","the run was too early, offside given."]));
+          movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+          break;
+        }
+
+        const interceptChance = clamp01((1 - passEval.laneClearFactor) * 0.55 * diff.interceptMult);
+
+        if(Math.random() < interceptChance){
+          const nearestDefender = opponents.length ? opponents.reduce((a,b)=>dist(carrierPos,a)<dist(carrierPos,b)?a:b) : null;
+          moveText.innerHTML = `<div class="decision-line">${passDetail(passEval)}</div>`;
+          moveOpponentsReacting(carrierPos, passDuration);
+          if(nearestDefender){
+            moveBallTo(nearestDefender.xPct, nearestDefender.yPct, passDuration);
+          } else {
+            moveBallTo(clampPct((carrierPos.xm/68)*100), clampPct((carrierPos.ym/105)*100), passDuration);
+          }
+          await delay(passDuration);
+          moveText.innerHTML = outcomeHTML('INTERCEPTED', pick(["defender steps in and cuts it out.","read it well — possession lost.","blocked — the lane wasn't there."]));
+          movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+          break;
+        }
+
+        moveText.innerHTML = `<div class="decision-line">${passDetail(passEval)}</div>`;
+        targetRecord.el.style.transitionDuration = passDuration+'ms';
+        targetRecord.el.classList.add('animating');
+        setTokenPos(targetRecord.el, runPct.xPct, runPct.yPct);
+        addDistance(targetRecord, dist(targetPosM, runPos));
+        targetRecord.xPct = runPct.xPct; targetRecord.yPct = runPct.yPct;
+
+        // ball follows the run; defenders press, other teammates shift to support
+        drawFlightLine(carrierRecord.xPct, carrierRecord.yPct, runPct.xPct, runPct.yPct, 'assist-line', passDuration);
+        moveBallTo(runPct.xPct, runPct.yPct, passDuration);
+        await Promise.all([
+          delay(passDuration),
+          moveOpponentsReacting(carrierPos, passDuration),
+          moveSupportingTeammates(opponents, targetRecord.id, passDuration)
+        ]);
+        targetRecord.el.classList.remove('animating');
+        targetRecord.el.style.transitionDuration = '';
+
+        usedTeammates.add(targetRecord.id);
+        carrierRecord = targetRecord;
+      }
+
+      // ---- DRIBBLE: real chance of getting tackled under pressure ----
+      else {
+        const dribbleEval = evalDribble(carrierPos, opponents, carrierRecord);
+        moveText.innerHTML = `<div class="decision-line">${dribbleDetail(dribbleEval)}</div>`;
+
+        let tackleChance = 0.02;
+        if(dribbleEval.nearestOpp < 2.5) tackleChance = 0.40;
+        else if(dribbleEval.nearestOpp < 5) tackleChance = 0.18;
+        else if(dribbleEval.nearestOpp < 9) tackleChance = 0.06;
+        tackleChance = clamp01(tackleChance * diff.tackleMult);
+
+        const newPos = advanceDribble(carrierPos, opponents);
+        const newPct = pctFromMeters(newPos);
+        const dribbleDuration = durationFor(dist(carrierPos, newPos));
+
+        carrierRecord.el.style.transitionDuration = dribbleDuration+'ms';
+        carrierRecord.el.classList.add('animating');
+        moveBallTo(newPct.xPct, newPct.yPct, dribbleDuration);
+        setTokenPos(carrierRecord.el, newPct.xPct, newPct.yPct);
+        addDistance(carrierRecord, dist(carrierPos, newPos));
+        carrierRecord.xPct = newPct.xPct; carrierRecord.yPct = newPct.yPct;
+
+        await Promise.all([
+          delay(dribbleDuration),
+          moveOpponentsReacting(carrierPos, dribbleDuration),
+          moveSupportingTeammates(opponents, carrierRecord.id, dribbleDuration)
+        ]);
+        carrierRecord.el.classList.remove('animating');
+        carrierRecord.el.style.transitionDuration = '';
+
+        // ---- Foul & Discipline (Match Law, Part 2 Rule 2) ----
+        // Every failed tackle checks a safety margin against the defender's aggression; if it
+        // goes wrong inside the box it's a penalty, otherwise a free kick. Two yellows send the
+        // defender off.
+        if(Math.random() < tackleChance){
+          const nearestDefender = opponents.length ? opponents.reduce((a,b)=>dist(newPos,a)<dist(newPos,b)?a:b) : null;
+          const defAggression = nearestDefender ? getProfile(nearestDefender.position).pressAgg : 1;
+          const inBox = newPos.ym < 16.5 && newPos.xm > 13.84 && newPos.xm < 54.16;
+          const foulChance = clamp01(0.22 * defAggression * (inBox ? 1.3 : 1));
+          const isFoul = nearestDefender && Math.random() < foulChance;
+
+          if(isFoul){
+            const prevYellows = cardCounts.get(nearestDefender.id) || 0;
+            const newYellows = prevYellows + 1;
+            cardCounts.set(nearestDefender.id, newYellows);
+            const sentOff = newYellows >= 2;
+            const cardMsg = sentOff ? ' Second yellow — RED CARD, they go down to 10 men!' : ' Yellow card shown.';
+
+            if(inBox){
+              moveText.innerHTML = outcomeHTML('PENALTY!', 'clumsy challenge inside the box — referee points to the spot.' + cardMsg);
+              movePanel.style.borderLeftColor = BORDER_COLOR.me;
+              await delay(500);
+              const penaltyGoal = Math.random() < 0.76; // fixed conversion probability per match law
+              if(penaltyGoal){
+                await showGoalFlash();
+                moveText.innerHTML = outcomeHTML('GOAL! ⚽', 'sent the keeper the wrong way from the spot.');
+              } else {
+                moveText.innerHTML = outcomeHTML('MISSED', pick(["keeper guesses right and saves it.","dragged the penalty wide."]));
+                movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+              }
+            } else {
+              moveText.innerHTML = outcomeHTML('FOUL', 'free kick given away.' + cardMsg);
+              movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+            }
+            if(sentOff){ removeToken(nearestDefender.id); }
+          } else {
+            moveText.innerHTML = outcomeHTML('TACKLED', pick(["defender wins the ball clean.","dispossessed — challenge was too strong.","lost control under pressure, turned over."]));
+            movePanel.style.borderLeftColor = BORDER_COLOR.opponent;
+          }
+          break;
+        }
+      }
+    }
+
+    await delay(600);
+    ball.classList.remove('visible');
+    playBtn.disabled = false;
+    isPlaying = false;
+  }
+
+  playBtn.addEventListener('click', playSequence);
+
+  function announceMove(record){
+    const pos = metersFromPct(record);
+    const others = tokens.filter(t=>t.id!==record.id).map(t=>({...t, ...metersFromPct(t)}));
+
+    let msg = '';
+    let color = BORDER_COLOR[record.type];
+
+    if(record.type === 'me'){
+      const opponents = others.filter(t=>t.type==='opponent');
+      const teammates = others.filter(t=>t.type==='teammate');
+      const result = decideAction(pos, opponents, teammates, record);
+      moveText.innerHTML = renderDecisionHTML(result);
+      moveText.className = 'move-text';
+      movePanel.style.borderLeftColor = BORDER_COLOR.me;
+      playBtn.style.display = 'block';
+      return;
+    }
+
+    else if(record.type === 'teammate'){
+      const inAttackingThird = pos.ym < 35;
+      const inDefensiveThird = pos.ym > 70;
+      const isWide = pos.xm < 20 || pos.xm > 48;
+
+      if(inAttackingThird && isWide){
+        msg = pick(["Stay wide and stretch their back line.","Hold width to open passing lanes centrally.","Keep the touchline, pin the fullback."]);
+      } else if(inAttackingThird){
+        msg = pick(["Make a run in behind the defense.","Time a run into the box.","Get in the box — look for the cross."]);
+      } else if(inDefensiveThird){
+        msg = pick(["Drop deeper to help build from the back.","Offer a safe outlet for the defense.","Come short and help recycle possession."]);
+      } else {
+        msg = pick(["Show for the ball, offer an easy pass.","Drop into space to link play.","Check to feet and turn if you can."]);
+      }
+    }
+
+    else { // opponent
+      const dangerZone = pos.ym > 80;
+      const midZone = pos.ym > 45 && pos.ym <= 80;
+      if(dangerZone){
+        msg = pick(["Press immediately — deny the shot.","Close them down fast and cut the angle.","Get tight now, don't let them turn."]);
+      } else if(midZone){
+        msg = pick(["Track their run, don't let them turn easily.","Show them onto their weaker foot.","Stay goal-side and delay."]);
+      } else {
+        msg = pick(["Stay compact, no need to press yet.","Hold shape, let them have it there.","Screen the passing lane instead of chasing."]);
+      }
+    }
+
+    const posLabel = getProfile(record.position).label;
+    moveText.innerHTML = `<span style="color:${color};font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;">${posLabel}</span><br>${msg}`;
+    moveText.className = 'move-text';
+    movePanel.style.borderLeftColor = color;
+  }
+})();
+</script>
+</body>
+</html>
