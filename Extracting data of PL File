@@ -1,0 +1,74 @@
+import os
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+def extract_and_prepare_penalties(dataset_path):
+    """
+    Extracts penalty-only metrics from the EPL 25/26 season file 
+    and prepares clean structures for ML modeling or deep data analysis.
+    """
+    # 1. Verify and load the dataset file
+    if not os.path.exists(dataset_path):
+        raise FileNotFoundError(
+            f"Could not find the dataset at '{dataset_path}'. Please make sure "
+            f"you downloaded and unzipped team_match_stats.csv or team_season_stats.csv."
+        )
+        
+    df = pd.read_csv(dataset_path)
+    print(f"📦 Successfully loaded source dataset with shape: {df.shape}")
+    
+    # 2. Map FBref specific penalty column features
+    # 'Team'/'squad': Team Name, 'PKatt': Penalties Attempted, 'PK': Penalties Scored
+    team_col = 'Team' if 'Team' in df.columns else 'squad'
+    
+    required_cols = [team_col, 'PKatt', 'PK']
+    for col in required_cols:
+        if col not in df.columns:
+            raise KeyError(f"Missing required database tracking column: '{col}'")
+
+    # 3. Clean and isolate to ONLY penalty events
+    # Subset database down to just our penalty targets
+    penalty_df = df[required_cols].copy()
+    
+    # Drop rows containing missing values in the penalty columns
+    penalty_df = penalty_df.dropna(subset=['PKatt', 'PK'])
+    
+    # Filter dataset so we ONLY look at rows where penalties actually occurred
+    # This prevents division-by-zero errors when doing feature engineering
+    penalty_df = penalty_df[penalty_df['PKatt'] > 0].reset_index(drop=True)
+
+    # 4. Feature Engineering (Constructing analytical fields)
+    penalty_df['PKmissed'] = penalty_df['PKatt'] - penalty_df['PK']
+    penalty_df['conversion_efficiency'] = penalty_df['PK'] / penalty_df['PKatt']
+
+    # Save a pure, clean, penalty-only file for permanent storage/sharing
+    output_filename = "epl_2526_penalties_only.csv"
+    penalty_df.to_csv(output_filename, index=False)
+    print(f"💾 Isolated penalty-only dataset exported to: {output_filename}")
+
+    # 5. Machine Learning Vectorization Vector Prepping
+    # One-hot encode string features (team names) to create numerical matrix arrays
+    encoded_df = pd.get_dummies(penalty_df, columns=[team_col], drop_first=True)
+
+    # Separate your data matrix into Features (X) and Target Label (y)
+    # Target choice example: Predicting penalties successfully scored ('PK')
+    X = encoded_df.drop(columns=['PK', 'conversion_efficiency'])
+    y = encoded_df['PK']
+
+    # 6. Generate Train/Test Splits for analytical safety validation
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, shuffle=True
+    )
+    
+    print("\n📊 --- ML Arrays Structural Summary ---")
+    print(f"Training Features Vector Shape : {X_train.shape}")
+    print(f"Testing Features Vector Shape  : {X_test.shape}")
+    print("----------------------------------------")
+    
+    return X_train, X_test, y_train, y_test
+
+# --- Execution Setup ---
+# default file name structure inside Mert Bayraktar's zip folder
+# target_file = "team_season_stats.csv" 
+# X_train, X_test, y_train, y_test = extract_and_prepare_penalties(target_file)
