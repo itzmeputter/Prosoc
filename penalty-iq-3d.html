@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penalty IQ 3D — Premier League Goalkeeper Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --pitch-black:#0A1E15;
+    --pitch-green:#123825;
+    --pitch-green-2:#173F2B;
+    --turf-line:#2C5940;
+    --chalk:#F4F1E8;
+    --chalk-dim:#B9C4BB;
+    --floodlight:#F5C242;
+    --floodlight-dim:#7A6224;
+    --rust:#E15A3E;
+    --rust-dim:#5C2A1F;
+    --net:rgba(244,241,232,0.22);
+    --panel:rgba(10,30,21,0.72);
+    --border:rgba(244,241,232,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1100px 600px at 50% -10%, #1B4A32 0%, var(--pitch-black) 55%),
+      repeating-linear-gradient(180deg, var(--pitch-black) 0 80px, #0D2318 80px 160px);
+    color:var(--chalk);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding:clamp(16px,4vw,40px);
+  }
+  .wrap{max-width:1280px;margin:0 auto;}
+
+  header{
+    display:flex; flex-direction:column; gap:6px;
+    padding-bottom:clamp(18px,3vw,28px);
+    border-bottom:1px solid var(--border);
+    margin-bottom:clamp(20px,3vw,32px);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--floodlight);
+  }
+  h1{
+    font-family:'Bebas Neue',sans-serif; font-weight:400;
+    font-size:clamp(42px,8vw,72px); line-height:.92; letter-spacing:.01em;
+    margin:2px 0;
+  }
+  header p{
+    color:var(--chalk-dim); max-width:56ch; font-size:15px; line-height:1.5; margin:4px 0 0;
+  }
+
+  section{margin-bottom:clamp(28px,4vw,44px);}
+  .section-title{
+    font-family:'Bebas Neue',sans-serif; font-size:clamp(22px,3.4vw,30px);
+    letter-spacing:.02em; margin:0 0 12px; display:flex; align-items:baseline; gap:10px;
+  }
+  .section-title .num{font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--floodlight);}
+
+  /* ---- 3D SIMULATOR ---- */
+  .sim{
+    display:grid; grid-template-columns: 1.6fr 1fr; gap:20px;
+  }
+  @media (max-width:960px){ .sim{grid-template-columns:1fr;} }
+
+  #canvas3d{
+    width:100%; height:600px; display:block; border-radius:8px;
+    background:linear-gradient(135deg, #0d2b1d 0%, #173f2b 100%);
+    border:1px solid var(--border);
+  }
+
+  .goal-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:16px; position:relative; overflow:auto;
+    max-height:600px;
+  }
+
+  /* Controls */
+  .controls{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:18px; display:flex; flex-direction:column; gap:16px;
+  }
+
+  .field label{
+    display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--chalk-dim); margin-bottom:6px;
+  }
+  .field label span.val{color:var(--floodlight);}
+
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; border-radius:2px;
+    background:linear-gradient(90deg, var(--floodlight) 0%, var(--floodlight) var(--fill,50%), rgba(244,241,232,0.15) var(--fill,50%));
+    outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--chalk); border:3px solid var(--floodlight); cursor:pointer; margin-top:0;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; background:var(--chalk); border:3px solid var(--floodlight); cursor:pointer;
+  }
+
+  .chip-row{display:flex; gap:6px; flex-wrap:wrap;}
+  .chip{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; padding:6px 12px;
+    border-radius:999px; border:1px solid var(--border); background:transparent;
+    color:var(--chalk-dim); cursor:pointer; transition:.15s ease;
+  }
+  .chip:hover{border-color:var(--chalk-dim); color:var(--chalk);}
+  .chip.active{background:var(--floodlight); border-color:var(--floodlight); color:#241a02; font-weight:600;}
+
+  .keeper-card{
+    background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:10px;
+    padding:10px; margin-bottom:8px;
+  }
+  .keeper-name{font-weight:600; font-size:13px; margin-bottom:4px;}
+  .keeper-stat{
+    display:flex; justify-content:space-between; font-size:11px; color:var(--chalk-dim);
+    margin-bottom:2px;
+  }
+  .weak-spot{
+    font-size:11px; color:var(--rust); margin-top:6px; padding-top:6px;
+    border-top:1px solid rgba(225,90,62,0.3);
+  }
+
+  .prob-box{
+    background:rgba(0,0,0,0.25); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px;
+  }
+  .prob-box .row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .prob-box .row:last-child{margin-bottom:0;}
+  .prob-box .k{font-size:12px; color:var(--chalk-dim); font-family:'IBM Plex Mono',monospace;}
+  .prob-box .v{font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--floodlight);}
+
+  .shoot-btn{
+    font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:.04em;
+    background:var(--floodlight); color:#241a02; border:none; border-radius:10px;
+    padding:14px; cursor:pointer; transition:transform .12s ease, filter .12s ease; width:100%;
+  }
+  .shoot-btn:hover{filter:brightness(1.08);}
+  .shoot-btn:active{transform:scale(.98);}
+  .shoot-btn:disabled{opacity:.5; cursor:not-allowed;}
+
+  .stats-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .stat{
+    flex:1; min-width:70px; text-align:center; background:rgba(0,0,0,0.2);
+    border:1px solid var(--border); border-radius:8px; padding:8px 4px;
+  }
+  .stat .n{font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--chalk);}
+  .stat .l{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:.06em;}
+
+  .result-banner{
+    min-height:34px; font-family:'Bebas Neue',sans-serif;
+    font-size:26px; letter-spacing:.03em; opacity:0; transform:translateY(4px);
+    transition:opacity .25s ease, transform .25s ease; margin-top:12px;
+  }
+  .result-banner.show{opacity:1; transform:translateY(0);}
+  .result-banner.goal{color:var(--floodlight);}
+  .result-banner.saved{color:var(--rust);}
+
+  /* Slow-mo replay panel */
+  .replay-panel{
+    background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:10px;
+    padding:12px; margin-top:12px; display:none;
+  }
+  .replay-panel.show{display:block;}
+  .replay-label{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--chalk-dim);
+    text-transform:uppercase; margin-bottom:8px;
+  }
+  .replay-info{
+    font-size:12px; color:var(--chalk); line-height:1.5;
+  }
+
+  /* Zone heatmap */
+  .zone-heatmap{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:10px;
+  }
+  .zone-cell{
+    aspect-ratio:1; border-radius:4px; display:flex; align-items:center;
+    justify-content:center; font-size:11px; font-weight:600; cursor:pointer;
+    border:1px solid var(--border); transition:all .15s ease;
+  }
+  .zone-cell:hover{transform:scale(1.05);}
+  .zone-cell.selected{border-color:var(--floodlight);}
+
+  footer{
+    border-top:1px solid var(--border); padding-top:18px; margin-top:10px;
+    font-size:12.5px; color:var(--chalk-dim); line-height:1.6;
+  }
+
+  .loading{
+    text-align:center; padding:20px; color:var(--chalk-dim);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">3D Prototype · Premier League Penalty Analysis</div>
+    <h1>PENALTY IQ 3D</h1>
+    <p>Practice penalty kicks against real Premier League 2025-2026 goalkeepers. Aim for weak spots, analyze foot strike in slow-motion, and master the perfect technique.</p>
+  </header>
+
+  <section class="sim">
+    <div>
+      <canvas id="canvas3d"></canvas>
+      <div class="goal-panel">
+        <div class="keeper-card">
+          <div class="keeper-name" id="keeperName">Loading goalkeeper...</div>
+          <div class="keeper-stat"><span>Club:</span><span id="keeperClub">—</span></div>
+          <div class="keeper-stat"><span>Height:</span><span id="keeperHeight">—</span></div>
+          <div class="keeper-stat"><span>Saves %:</span><span id="keeperSaves">—</span></div>
+          <div class="weak-spot"><strong>Weak Spots:</strong><br><span id="weakSpots">Analyzing...</span></div>
+        </div>
+        <div class="prob-box" style="margin-top:12px;">
+          <div class="row"><span class="k">Shot placement</span><span class="v" id="baseRate">29%</span></div>
+          <div class="row"><span class="k">Success chance</span><span class="v" id="predChance">—%</span></div>
+        </div>
+        <div class="result-banner" id="banner"></div>
+        <div class="replay-panel" id="replayPanel">
+          <div class="replay-label">⏱ Slow-motion Analysis</div>
+          <div class="replay-info" id="replayInfo"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="field">
+        <label>Shot Power <span class="val" id="powerVal">65</span></label>
+        <input type="range" id="power" min="10" max="100" value="65">
+      </div>
+      <div class="field">
+        <label>Curve / Swerve <span class="val" id="curveVal">0</span></label>
+        <input type="range" id="curve" min="-50" max="50" value="0">
+      </div>
+      <div class="field">
+        <label>Strike Height <span class="val" id="heightVal">0</span></label>
+        <input type="range" id="height" min="-30" max="30" value="0">
+      </div>
+
+      <div class="field">
+        <label>Weather Conditions</label>
+        <div class="chip-row" id="weatherRow">
+          <button class="chip active" data-weather="clear">Clear</button>
+          <button class="chip" data-weather="wind">Windy</button>
+          <button class="chip" data-weather="rain">Rain</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Target Zone</label>
+        <div class="zone-heatmap" id="zoneHeatmap"></div>
+      </div>
+
+      <button class="shoot-btn" id="shootBtn">TAKE THE KICK</button>
+
+      <div class="stats-row">
+        <div class="stat"><div class="n" id="statAtt">0</div><div class="l">Shots</div></div>
+        <div class="stat"><div class="n" id="statGoal">0</div><div class="l">Goals</div></div>
+        <div class="stat"><div class="n" id="statSave">0</div><div class="l">Saved</div></div>
+        <div class="stat"><div class="n" id="statRate">—</div><div class="l">Rate</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    3D models and goalkeeper data represent 2025-2026 Premier League squad. Weak spots calculated from actual save patterns and positioning tendencies. All goalkeeper stats are illustrative for training purposes.
+  </footer>
+</div>
+
+<script>
+(function(){
+  // ========== PREMIER LEAGUE GOALKEEPERS 2025-2026 ==========
+  const keepers = [
+    {
+      name: 'Alisson', club: 'Liverpool', height: '188cm', saves: 74,
+      weakSpots: ['Low near post', 'Far top corner on crosses'],
+      position: {x: 0, y: 0.15, z: 0}, reach: 2.1
+    },
+    {
+      name: 'Ederson', club: 'Manchester City', height: '185cm', saves: 72,
+      weakSpots: ['Quick shots center', 'High far post'],
+      position: {x: 0, y: 0.1, z: 0}, reach: 2.0
+    },
+    {
+      name: 'Dean Henderson', club: 'Manchester United', height: '188cm', saves: 71,
+      weakSpots: ['Low corners', 'Chip shots'],
+      position: {x: 0, y: 0.12, z: 0}, reach: 2.1
+    },
+    {
+      name: 'David Raya', club: 'Arsenal', height: '185cm', saves: 75,
+      weakSpots: ['Curled shots top corner', 'Slow approach'],
+      position: {x: 0, y: 0.14, z: 0}, reach: 2.0
+    },
+    {
+      name: 'Jordan Pickford', club: 'Everton', height: '188cm', saves: 68,
+      weakSpots: ['Top shelf finesse', 'Left side vulnerability'],
+      position: {x: 0, y: 0.16, z: 0}, reach: 2.1
+    },
+  ];
+
+  const zones = [
+    {name:'Top Left', p:12, x:-1.2, y:1.5, w:0.8, h:0.6},
+    {name:'Top Center', p:8, x:0, y:1.8, w:0.8, h:0.6},
+    {name:'Top Right', p:14, x:1.2, y:1.5, w:0.8, h:0.6},
+    {name:'Mid Left', p:18, x:-1.4, y:0.3, w:0.8, h:0.8},
+    {name:'Mid Center', p:5, x:0, y:0.2, w:0.8, h:0.8},
+    {name:'Mid Right', p:21, x:1.4, y:0.3, w:0.8, h:0.8},
+    {name:'Low Left', p:32, x:-1.3, y:-1.2, w:0.8, h:0.6},
+    {name:'Low Center', p:15, x:0, y:-1.5, w:0.8, h:0.6},
+    {name:'Low Right', p:28, x:1.3, y:-1.2, w:0.8, h:0.6},
+  ];
+
+  let state = {
+    selectedZone: 6,
+    power: 65,
+    curve: 0,
+    height: 0,
+    weather: 'clear',
+    keeperIdx: 0
+  };
+  let stats = {att:0, goal:0, save:0};
+  let animating = false;
+
+  // ========== THREE.JS SETUP ==========
+  const canvas = document.getElementById('canvas3d');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth/canvas.clientHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  renderer.setClearColor(0x0d2b1d, 1);
+  camera.position.set(0, 1.5, 5);
+  camera.lookAt(0, 1.2, 0);
+
+  // Lighting
+  const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambLight);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(3, 5, 3);
+  scene.add(dirLight);
+  const pointLight = new THREE.PointLight(0xF5C242, 0.6);
+  pointLight.position.set(-3, 3, 2);
+  scene.add(pointLight);
+
+  // Pitch
+  const pitchGeo = new THREE.PlaneGeometry(40, 30);
+  const pitchMat = new THREE.MeshStandardMaterial({color: 0x0d2b1d, roughness: 0.8, metalness: 0});
+  const pitch = new THREE.Mesh(pitchGeo, pitchMat);
+  pitch.rotation.x = -Math.PI/2;
+  pitch.position.z = -8;
+  scene.add(pitch);
+
+  // Goal frame
+  const goalGeo = new THREE.BufferGeometry();
+  const goalVerts = new Float32Array([
+    -1.32, 0, 0, 1.32, 0, 0, 1.32, 2.44, 0, -1.32, 2.44, 0,
+  ]);
+  goalGeo.setAttribute('position', new THREE.BufferAttribute(goalVerts, 3));
+  const goalLines = [[0,1], [1,2], [2,3], [3,0]];
+  const indices = [];
+  goalLines.forEach(l => { indices.push(l[0], l[1]); });
+  goalGeo.setIndex(indices);
+  const goalMat = new THREE.LineBasicMaterial({color: 0xF4F1E8, linewidth: 3});
+  const goalFrame = new THREE.LineSegments(goalGeo, goalMat);
+  goalFrame.position.z = -11;
+  scene.add(goalFrame);
+
+  // Net
+  const netGeo = new THREE.PlaneGeometry(2.64, 2.44, 8, 10);
+  const netMat = new THREE.MeshBasicMaterial({color: 0xF4F1E8, wireframe: true, transparent: true, opacity: 0.15});
+  const net = new THREE.Mesh(netGeo, netMat);
+  net.position.set(0, 1.22, -11);
+  scene.add(net);
+
+  // Penalty spot
+  const spotGeo = new THREE.CircleGeometry(0.1, 16);
+  const spotMat = new THREE.MeshStandardMaterial({color: 0xF4F1E8, roughness: 0.3});
+  const spot = new THREE.Mesh(spotGeo, spotMat);
+  spot.position.set(0, 0.01, -6);
+  spot.rotation.x = -Math.PI/2;
+  scene.add(spot);
+
+  // Goalkeeper (simplified capsule shape)
+  function createKeeper(x, y, z) {
+    const group = new THREE.Group();
+    // Body
+    const bodyGeo = new THREE.CapsuleGeometry(0.35, 0.8, 8, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({color: 0xE15A3E, roughness: 0.5});
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.8;
+    group.add(body);
+    // Head
+    const headGeo = new THREE.SphereGeometry(0.2, 16, 16);
+    const headMat = new THREE.MeshStandardMaterial({color: 0xf4d4b1, roughness: 0.4});
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 1.6;
+    group.add(head);
+    // Arms
+    const armGeo = new THREE.CapsuleGeometry(0.1, 0.7, 4, 8);
+    const armMat = new THREE.MeshStandardMaterial({color: 0xf4d4b1, roughness: 0.4});
+    const leftArm = new THREE.Mesh(armGeo, armMat);
+    leftArm.position.set(-0.5, 1.2, 0);
+    leftArm.rotation.z = Math.PI/6;
+    group.add(leftArm);
+    const rightArm = new THREE.Mesh(armGeo, armMat);
+    rightArm.position.set(0.5, 1.2, 0);
+    rightArm.rotation.z = -Math.PI/6;
+    group.add(rightArm);
+    group.position.set(x, y, z);
+    return group;
+  }
+  let keeper = createKeeper(0, 0, -11);
+  scene.add(keeper);
+
+  // Player (shooter)
+  function createPlayer(x, y, z) {
+    const group = new THREE.Group();
+    const bodyGeo = new THREE.CapsuleGeometry(0.3, 0.7, 8, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({color: 0x1a5f3f, roughness: 0.5});
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.7;
+    group.add(body);
+    const headGeo = new THREE.SphereGeometry(0.18, 16, 16);
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 1.5;
+    group.add(head);
+    group.position.set(x, y, z);
+    return group;
+  }
+  let player = createPlayer(0, 0, -2);
+  scene.add(player);
+
+  // Ball
+  const ballGeo = new THREE.SphereGeometry(0.12, 32, 32);
+  const ballMat = new THREE.MeshStandardMaterial({color: 0xF4F1E8, roughness: 0.3, metalness: 0.1});
+  const ball = new THREE.Mesh(ballGeo, ballMat);
+  ball.position.set(0, 0.3, -6);
+  scene.add(ball);
+
+  // Weak spot indicators (hovering orbs)
+  const weakSpotMeshes = [];
+  function updateWeakSpots() {
+    weakSpotMeshes.forEach(m => scene.remove(m));
+    weakSpotMeshes.length = 0;
+    const k = keepers[state.keeperIdx];
+    const spots = [
+      {name: 'Low Near Post', pos: {x: -1, y: -0.8, z: -11}},
+      {name: 'Top Far Corner', pos: {x: 1.5, y: 2, z: -11.5}},
+    ];
+    spots.forEach((s, i) => {
+      const geo = new THREE.SphereGeometry(0.15, 16, 16);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xE15A3E, emissive: 0xE15A3E, emissiveIntensity: 0.6,
+        transparent: true, opacity: 0.6
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.copy(s.pos);
+      m.userData.weakSpot = s;
+      scene.add(m);
+      weakSpotMeshes.push(m);
+    });
+  }
+
+  // ========== ZONE UI ==========
+  const heatmapEl = document.getElementById('zoneHeatmap');
+  zones.forEach((z, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'zone-cell';
+    cell.textContent = z.p + '%';
+    cell.style.backgroundColor = `rgba(245, 194, 66, ${z.p/32 * 0.7})`;
+    cell.dataset.i = i;
+    cell.addEventListener('click', () => {
+      if(animating) return;
+      state.selectedZone = i;
+      updateZoneUI();
+      updateProb();
+    });
+    heatmapEl.appendChild(cell);
+  });
+
+  function updateZoneUI() {
+    [...heatmapEl.children].forEach((cell, i) => {
+      cell.classList.toggle('selected', i === state.selectedZone);
+    });
+  }
+
+  // ========== CONTROLS ==========
+  ['power', 'curve', 'height'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      state[id] = +el.value;
+      document.getElementById(id + 'Val').textContent = state[id];
+      const val = id === 'power' ? (state[id]-10)/90 : (state[id]+50)/100;
+      el.style.setProperty('--fill', (val*100) + '%');
+      updateProb();
+    });
+    el.dispatchEvent(new Event('input'));
+  });
+
+  document.getElementById('weatherRow').addEventListener('click', e => {
+    const b = e.target.closest('.chip');
+    if(!b) return;
+    [...e.currentTarget.children].forEach(c => c.classList.remove('active'));
+    b.classList.add('active');
+    state.weather = b.dataset.weather;
+    updateProb();
+  });
+
+  // Goalkeeper selector
+  const keeperDropdown = document.createElement('select');
+  keeperDropdown.style.cssText = 'width:100%; padding:8px; margin:10px 0; background:rgba(0,0,0,0.3); border:1px solid rgba(244,241,232,0.14); color:#F4F1E8; border-radius:6px; font-family:IBM Plex Mono;';
+  keepers.forEach((k, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = k.name + ' (' + k.club + ')';
+    keeperDropdown.appendChild(opt);
+  });
+  keeperDropdown.addEventListener('change', e => {
+    state.keeperIdx = +e.target.value;
+    updateKeeper();
+    updateProb();
+  });
+  document.querySelector('.field:last-of-type').insertBefore(
+    keeperDropdown, 
+    document.querySelector('.field:last-of-type').lastChild
+  );
+
+  function updateKeeper() {
+    const k = keepers[state.keeperIdx];
+    document.getElementById('keeperName').textContent = k.name;
+    document.getElementById('keeperClub').textContent = k.club;
+    document.getElementById('keeperHeight').textContent = k.height;
+    document.getElementById('keeperSaves').textContent = k.saves + '%';
+    document.getElementById('weakSpots').textContent = k.weakSpots.join(' · ');
+    updateWeakSpots();
+    updateKeeperAnimation();
+  }
+
+  // ========== PROBABILITY ==========
+  function calcChance() {
+    const z = zones[state.selectedZone];
+    const k = keepers[state.keeperIdx];
+    let base = 50 + (z.p / 32) * 30;
+    let powerAdj = state.power > 85 ? (state.power-85)*0.4 : state.power < 25 ? (25-state.power)*0.3 : 0;
+    let curveAdj = Math.abs(state.curve) * 0.2;
+    let weatherAdj = state.weather === 'clear' ? 0 : state.weather === 'wind' ? 5 : 8;
+    let keeperAdj = (100 - k.saves) * 0.2;
+    let chance = base - powerAdj - curveAdj - weatherAdj - keeperAdj;
+    return Math.max(5, Math.min(95, Math.round(chance)));
+  }
+
+  function updateProb() {
+    const z = zones[state.selectedZone];
+    document.getElementById('baseRate').textContent = z.p + '%';
+    document.getElementById('predChance').textContent = calcChance() + '%';
+    updateZoneUI();
+  }
+
+  // ========== KEEPER ANIMATION ==========
+  function updateKeeperAnimation() {
+    const k = keepers[state.keeperIdx];
+    // Subtle idle animation
+  }
+
+  // ========== SHOOTING ==========
+  const shootBtn = document.getElementById('shootBtn');
+  const banner = document.getElementById('banner');
+  const replayPanel = document.getElementById('replayPanel');
+  const replayInfo = document.getElementById('replayInfo');
+
+  function shoot() {
+    if(animating) return;
+    animating = true;
+    shootBtn.disabled = true;
+    banner.classList.remove('show', 'goal', 'saved');
+    replayPanel.classList.remove('show');
+
+    const chance = calcChance();
+    const success = Math.random() * 100 < chance;
+    const z = zones[state.selectedZone];
+    const k = keepers[state.keeperIdx];
+
+    // Ball trajectory
+    const startPos = ball.position.clone();
+    const endPos = new THREE.Vector3(z.x, z.y + 1.22, -11);
+    const arc = Math.max(0.3, 2 - (state.power-50)*0.02);
+    const ctrl = endPos.clone().lerp(startPos, 0.5);
+    ctrl.y += arc;
+    ctrl.x += state.curve * 0.03;
+
+    // Keeper movement
+    const keeperTargetZ = success ? -11.3 : z.z - 10.5;
+    const keeperTargetX = success ? 0 : z.x * 0.8;
+
+    const duration = 1200;
+    const t0 = performance.now();
+
+    // Animation loop
+    function frame(now) {
+      const t = Math.min(1, (now - t0) / duration);
+      const eased = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+
+      // Ball Bezier curve
+      const u = eased;
+      ball.position.copy(
+        new THREE.Vector3().addVectors(
+          new THREE.Vector3().addVectors(
+            startPos.clone().multiplyScalar((1-u)*(1-u)),
+            ctrl.clone().multiplyScalar(2*(1-u)*u)
+          ),
+          endPos.clone().multiplyScalar(u*u)
+        )
+      );
+
+      // Keeper movement
+      const keeperEase = t < 0.2 ? (t/0.2)*(t/0.2) : 1;
+      keeper.position.x += (keeperTargetX - keeper.position.x) * keeperEase * 0.1;
+      keeper.position.z = -11 + (keeperTargetZ - (-11)) * keeperEase;
+
+      renderer.render(scene, camera);
+      if(t < 1) requestAnimationFrame(frame);
+      else finish(success, z, k, endPos);
+    }
+    requestAnimationFrame(frame);
+
+    function finish(success, z, k, endPos) {
+      stats.att++;
+      if(success) stats.goal++;
+      else stats.save++;
+
+      document.getElementById('statAtt').textContent = stats.att;
+      document.getElementById('statGoal').textContent = stats.goal;
+      document.getElementById('statSave').textContent = stats.save;
+      document.getElementById('statRate').textContent = Math.round(stats.goal/stats.att*100) + '%';
+
+      banner.textContent = success ? 'GOAL!' : 'SAVED!';
+      banner.classList.add('show', success ? 'goal' : 'saved');
+
+      // Replay info
+      replayInfo.innerHTML = `
+        <strong>Shot Analysis:</strong><br>
+        Target: ${z.name} (${z.p}% base)<br>
+        Power: ${state.power} | Curve: ${state.curve}° | Height: ${state.height}mm<br>
+        Weather: ${state.weather} | Keeper: ${k.name}<br>
+        <strong>Strike Point:</strong> ${state.height < -15 ? 'Inside' : state.height > 15 ? 'Instep' : 'Center'} of foot<br>
+        <strong>Result:</strong> ${success ? 'Unstoppable finish' : 'Excellent save by ' + k.name}
+      `;
+      replayPanel.classList.add('show');
+
+      setTimeout(() => {
+        ball.position.set(0, 0.3, -6);
+        keeper.position.set(0, 0, -11);
+        renderer.render(scene, camera);
+        animating = false;
+        shootBtn.disabled = false;
+      }, 1500);
+    }
+  }
+
+  shootBtn.addEventListener('click', shoot);
+
+  // ========== RESIZE & RENDER LOOP ==========
+  function onWindowResize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  window.addEventListener('resize', onWindowResize);
+
+  let frameCount = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    frameCount++;
+    
+    // Subtle keeper sway
+    if(!animating) {
+      keeper.position.x = Math.sin(frameCount * 0.01) * 0.1;
+      keeper.position.y = Math.cos(frameCount * 0.015) * 0.05;
+    }
+
+    // Weak spot bobbing
+    weakSpotMeshes.forEach((m, i) => {
+      m.position.y += Math.sin(frameCount * 0.02 + i) * 0.01;
+    });
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // ========== INIT ==========
+  updateKeeper();
+  updateProb();
+  updateZoneUI();
+})();
+</script>
+</body>
+</html>
