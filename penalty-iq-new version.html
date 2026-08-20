@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Penalty IQ · Realistic Strike & GK Weakness</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&family=Bebas+Neue&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a1e15;
+      color: #f4f1e8;
+      font-family: 'Inter', sans-serif;
+      padding: 16px;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1500px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      border-bottom: 1px solid rgba(244,241,232,0.12);
+      padding-bottom: 14px;
+      margin-bottom: 24px;
+    }
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-weight: 400;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      letter-spacing: 0.02em;
+      color: #f5c242;
+    }
+    header .sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: #b9c4bb;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+    .card {
+      background: rgba(10,30,21,0.7);
+      backdrop-filter: blur(3px);
+      border: 1px solid rgba(244,241,232,0.1);
+      border-radius: 20px;
+      padding: 18px 16px 20px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+    }
+    .card h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.02em;
+      color: #f5c242;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .card h3 small {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: #b9c4bb;
+      letter-spacing: 0.1em;
+    }
+    .viz-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      background: #0d2318;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(244,241,232,0.06);
+    }
+    #three-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .overlay-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 24px;
+      margin-top: 16px;
+      align-items: center;
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #b9c4bb;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .control-group label {
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .chip-group {
+      display: flex;
+      gap: 5px;
+    }
+    .chip {
+      background: transparent;
+      border: 1px solid rgba(244,241,232,0.2);
+      color: #b9c4bb;
+      padding: 4px 12px;
+      border-radius: 40px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .chip.active {
+      background: #f5c242;
+      border-color: #f5c242;
+      color: #1a1a0a;
+      font-weight: 600;
+    }
+    .chip:hover { border-color: #f5c242; color: #f4f1e8; }
+    .shot-btn {
+      background: #f5c242;
+      border: none;
+      border-radius: 60px;
+      padding: 10px 28px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.04em;
+      color: #1a1a0a;
+      cursor: pointer;
+      transition: 0.12s;
+      box-shadow: 0 4px 0 #7a6224;
+      transform: translateY(0);
+      margin-left: auto;
+    }
+    .shot-btn:active { transform: translateY(4px); box-shadow: none; }
+    .shot-btn:disabled { opacity: 0.5; transform: translateY(2px); box-shadow: none; pointer-events: none; }
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .stat {
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 6px 16px 8px;
+      text-align: center;
+      flex: 1 0 70px;
+      border: 1px solid rgba(244,241,232,0.06);
+    }
+    .stat .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem;
+      color: #f4f1e8;
+    }
+    .stat .lbl {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      color: #b9c4bb;
+      letter-spacing: 0.08em;
+    }
+    .weakness-box {
+      background: rgba(225,90,62,0.12);
+      border-left: 4px solid #e15a3e;
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-top: 12px;
+      font-size: 0.9rem;
+    }
+    .weakness-box strong { color: #f5c242; }
+    .footnote {
+      margin-top: 14px;
+      font-size: 0.75rem;
+      color: #7a8f83;
+      border-top: 1px solid rgba(244,241,232,0.06);
+      padding-top: 14px;
+    }
+    .info-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .info-card {
+      background: rgba(0,0,0,0.3);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .info-card .label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: #b9c4bb;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .info-card .value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.2rem;
+      color: #f5c242;
+      line-height: 1.2;
+    }
+    .info-card .subvalue {
+      font-size: 0.9rem;
+      color: #b9c4bb;
+    }
+    .bar-track {
+      background: #123825;
+      height: 10px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .bar-fill {
+      height: 100%;
+      background: #e15a3e;
+      border-radius: 10px;
+      transition: width 0.3s;
+    }
+    #replayLog {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: #f4f1e8;
+      min-height: 50px;
+      line-height: 1.6;
+      background: rgba(0,0,0,0.2);
+      padding: 8px 14px;
+      border-radius: 12px;
+      border-left: 3px solid #f5c242;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚽ PENALTY IQ · 3D</h1>
+    <div class="sub">Premier League 2025/26 · Realistic Player · Slow-Mo Strike Zoom</div>
+  </header>
+
+  <div class="grid-2">
+    <!-- 3D VIEW -->
+    <div class="card">
+      <h3>🎯 Strike &amp; GK <small>slow-mo zoom on foot · strike guide</small></h3>
+      <div class="viz-container" id="three-container">
+        <canvas id="three-canvas"></canvas>
+      </div>
+      <div class="overlay-controls">
+        <div class="control-group">
+          <label>Strike</label>
+          <div class="chip-group" id="footStrikeGroup">
+            <span class="chip active" data-strike="lace">Lace</span>
+            <span class="chip" data-strike="inside">Inside</span>
+            <span class="chip" data-strike="outside">Outside</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>GK</label>
+          <div class="chip-group" id="gkSelectGroup">
+            <span class="chip active" data-gk="alisson">Alisson</span>
+            <span class="chip" data-gk="ederson">Ederson</span>
+            <span class="chip" data-gk="ramsdale">Ramsdale</span>
+          </div>
+        </div>
+        <button class="shot-btn" id="shootBtn">⚡ KICK</button>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><div class="num" id="statShots">0</div><div class="lbl">Shots</div></div>
+        <div class="stat"><div class="num" id="statGoals">0</div><div class="lbl">Goals</div></div>
+        <div class="stat"><div class="num" id="statSaved">0</div><div class="lbl">Saved</div></div>
+        <div class="stat"><div class="num" id="statRate">—%</div><div class="lbl">Rate</div></div>
+      </div>
+    </div>
+
+    <!-- INFO PANEL -->
+    <div class="card info-panel">
+      <h3>📊 GK Weakness &amp; Strike Guide</h3>
+      <div class="info-card">
+        <div class="label">Weak zone</div>
+        <div class="value" id="weakZoneDisplay">⬇️ LOW LEFT</div>
+        <div class="subvalue">Save rate: <span id="weakPct">31%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="weakBar" style="width:31%"></div></div>
+      </div>
+      <div class="info-card">
+        <div class="label">Recommended strike</div>
+        <div class="value" id="recommendStrike" style="font-size:1.8rem;">lace · low left</div>
+      </div>
+      <div class="info-card" style="flex:1;">
+        <div class="label">Slow-mo replay &amp; strike guide</div>
+        <div id="replayLog">🎯 Aim at weak zone · strike with lace</div>
+      </div>
+      <div class="weakness-box" id="weaknessDisplay">
+        <strong>🔍 Alisson</strong> · Weakness: low left · 31% save rate
+      </div>
+      <div class="footnote">
+        * Realistic player model · slow-motion zoom on foot contact · strike zone highlighted
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.126.0/build/three.module.js"
+    }
+  }
+</script>
+<script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.126.0/build/three.module.js';
+  import { OrbitControls } from 'https://unpkg.com/three@0.126.0/examples/jsm/controls/OrbitControls.js';
+
+  // --- SETUP ---
+  const container = document.getElementById('three-container');
+  const canvas = document.getElementById('three-canvas');
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0d2318);
+  const camera = new THREE.PerspectiveCamera(30, width/height, 0.1, 40);
+  camera.position.set(4.2, 3.5, 7);
+  camera.lookAt(0, 1.2, 0);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(width, height);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.target.set(0, 1.2, 0);
+  controls.minDistance = 2.5;
+  controls.maxDistance = 12;
+  controls.maxPolarAngle = Math.PI / 2.1;
+
+  // --- LIGHTS ---
+  const ambient = new THREE.AmbientLight(0x404c44, 0.6);
+  scene.add(ambient);
+  const mainLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+  mainLight.position.set(6, 10, 4);
+  mainLight.castShadow = true;
+  mainLight.shadow.mapSize.width = 1024;
+  mainLight.shadow.mapSize.height = 1024;
+  scene.add(mainLight);
+  const fill = new THREE.DirectionalLight(0x4488ff, 0.5);
+  fill.position.set(-4, 2, -3);
+  scene.add(fill);
+  const back = new THREE.DirectionalLight(0xffaa66, 0.4);
+  back.position.set(-2, 3, -6);
+  scene.add(back);
+  const rim = new THREE.DirectionalLight(0x88ccff, 0.3);
+  rim.position.set(0, 1, -5);
+  scene.add(rim);
+
+  // --- PITCH / GOAL ---
+  function createPitch() {
+    const group = new THREE.Group();
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 7),
+      new THREE.MeshStandardMaterial({ color: 0x1b4a32, roughness: 0.9 })
+    );
+    ground.rotation.x = -Math.PI/2;
+    ground.position.set(0, 0, 0);
+    ground.receiveShadow = true;
+    group.add(ground);
+
+    // grass stripes
+    for (let i = -4; i <= 4; i+=1.2) {
+      const stripe = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.4, 7),
+        new THREE.MeshStandardMaterial({ color: 0x1f5538, roughness: 0.9, transparent: true, opacity: 0.3 })
+      );
+      stripe.rotation.x = -Math.PI/2;
+      stripe.position.set(i, 0.01, 0);
+      group.add(stripe);
+    }
+
+    // goal frame
+    const postMat = new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.4, metalness: 0.3 });
+    const w = 2.5, h = 1.2;
+    const posts = [
+      { pos: [-w/2, h/2, 0.8], s: [0.08, h, 0.08] },
+      { pos: [w/2, h/2, 0.8], s: [0.08, h, 0.08] },
+      { pos: [0, h, 0.8], s: [w, 0.08, 0.08] },
+      { pos: [0, 0.1, 0.8], s: [w, 0.08, 0.08] },
+    ];
+    posts.forEach(p => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(...p.s), postMat);
+      m.position.set(...p.pos);
+      m.castShadow = true;
+      group.add(m);
+    });
+    // net
+    const netMat = new THREE.LineBasicMaterial({ color: 0x88aa99, transparent: true, opacity: 0.2 });
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      const x = -w/2 + t * w;
+      const geom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(x, 0.1, 0.8),
+        new THREE.Vector3(x, h, 0.8)
+      ]);
+      group.add(new THREE.Line(geom, netMat));
+    }
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      const y = 0.1 + t * h;
+      const geom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-w/2, y, 0.8),
+        new THREE.Vector3(w/2, y, 0.8)
+      ]);
+      group.add(new THREE.Line(geom, netMat));
+    }
+    return group;
+  }
+  const pitchGroup = createPitch();
+  scene.add(pitchGroup);
+
+  // --- REALISTIC PLAYER (football player like FC mobile) ---
+  function createRealisticPlayer() {
+    const group = new THREE.Group();
+    const skin = 0xf0d5b0;
+    const kitColor = 0x2a5a3a;
+    const kitColor2 = 0x1a3a2a;
+    
+    // Torso (with kit)
+    const torso = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.45, 0.7, 12),
+      new THREE.MeshStandardMaterial({ color: kitColor, roughness: 0.7 })
+    );
+    torso.position.set(0, 1.0, 0);
+    torso.castShadow = true;
+    group.add(torso);
+    
+    // Kit details - stripes
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xf5c242, roughness: 0.6 });
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.15), stripeMat);
+    stripe.position.set(0, 1.0, 0.22);
+    group.add(stripe);
+    const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.15), stripeMat);
+    stripe2.position.set(0, 1.0, -0.22);
+    group.add(stripe2);
+
+    // Head (with hair)
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 16, 16),
+      new THREE.MeshStandardMaterial({ color: skin, roughness: 0.4 })
+    );
+    head.position.set(0, 1.52, 0.05);
+    head.castShadow = true;
+    group.add(head);
+    // Hair
+    const hair = new THREE.Mesh(
+      new THREE.SphereGeometry(0.23, 12, 12, 0, Math.PI*2, 0, Math.PI/2.5),
+      new THREE.MeshStandardMaterial({ color: 0x2c1a0a, roughness: 0.8 })
+    );
+    hair.position.set(0, 1.55, 0.02);
+    hair.rotation.x = 0.1;
+    group.add(hair);
+
+    // Neck
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.12, 0.08),
+      new THREE.MeshStandardMaterial({ color: skin })
+    );
+    neck.position.set(0, 1.3, 0);
+    group.add(neck);
+
+    // Arms (with kit sleeves)
+    const armMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.5 });
+    const sleeveMat = new THREE.MeshStandardMaterial({ color: kitColor2, roughness: 0.7 });
+    const armGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.45);
+    // Left arm
+    const lArm = new THREE.Mesh(armGeo, armMat);
+    lArm.position.set(-0.42, 1.15, 0);
+    lArm.rotation.z = 0.25;
+    lArm.rotation.x = -0.2;
+    lArm.castShadow = true;
+    group.add(lArm);
+    // Sleeve left
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.12), sleeveMat);
+    sleeve.position.set(-0.42, 1.22, 0);
+    sleeve.rotation.z = 0.25;
+    group.add(sleeve);
+    // Right arm
+    const rArm = new THREE.Mesh(armGeo, armMat);
+    rArm.position.set(0.42, 1.15, 0);
+    rArm.rotation.z = -0.25;
+    rArm.rotation.x = 0.2;
+    rArm.castShadow = true;
+    group.add(rArm);
+    const sleeveR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.12), sleeveMat);
+    sleeveR.position.set(0.42, 1.22, 0);
+    sleeveR.rotation.z = -0.25;
+    group.add(sleeveR);
+
+    // Legs (with shorts and socks)
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x1f3a2a, roughness: 0.7 });
+    const sockMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8 });
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    
+    // Left leg
+    const lLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.55), legMat);
+    lLeg.position.set(-0.15, 0.35, 0);
+    lLeg.castShadow = true;
+    group.add(lLeg);
+    // Sock
+    const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.10, 0.15), sockMat);
+    sock.position.set(-0.15, 0.15, 0);
+    group.add(sock);
+    // Boot
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.18), bootMat);
+    boot.position.set(-0.15, 0.04, 0.06);
+    boot.castShadow = true;
+    group.add(boot);
+    
+    // Right leg (kicking leg - slightly back)
+    const rLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.55), legMat);
+    rLeg.position.set(0.15, 0.35, 0);
+    rLeg.castShadow = true;
+    group.add(rLeg);
+    const sockR = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.10, 0.15), sockMat);
+    sockR.position.set(0.15, 0.15, 0);
+    group.add(sockR);
+    const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.18), bootMat);
+    bootR.position.set(0.15, 0.04, 0.06);
+    bootR.castShadow = true;
+    group.add(bootR);
+
+    // Shorts
+    const shorts = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.22, 0.15, 12),
+      new THREE.MeshStandardMaterial({ color: 0x1a2a1a, roughness: 0.8 })
+    );
+    shorts.position.set(0, 0.65, 0);
+    group.add(shorts);
+
+    return group;
+  }
+
+  const player = createRealisticPlayer();
+  player.position.set(-0.3, 0, 1.8);
+  player.rotation.y = 0.2;
+  scene.add(player);
+
+  // --- GK (with kit) ---
+  function createRealisticGK(color = 0xcc3333) {
+    const g = new THREE.Group();
+    const skin = 0xf0d5b0;
+    
+    // Body
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.38, 0.44, 0.85, 12),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.6 })
+    );
+    body.position.set(0, 0.9, 0);
+    body.castShadow = true;
+    g.add(body);
+    
+    // Kit detail
+    const detail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.36, 0.42, 0.02, 12),
+      new THREE.MeshStandardMaterial({ color: 0xf5c242, roughness: 0.5 })
+    );
+    detail.position.set(0, 0.65, 0.15);
+    g.add(detail);
+
+    // Head
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.23, 14, 14),
+      new THREE.MeshStandardMaterial({ color: skin, roughness: 0.4 })
+    );
+    head.position.set(0, 1.4, 0.05);
+    head.castShadow = true;
+    g.add(head);
+    // Cap
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.26, 0.04, 12),
+      new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 })
+    );
+    cap.position.set(0, 1.48, 0);
+    g.add(cap);
+
+    // Gloves (bigger)
+    const gloveMat = new THREE.MeshStandardMaterial({ color: 0xf5c242, roughness: 0.5 });
+    const gloveGeo = new THREE.SphereGeometry(0.12, 8, 8);
+    const gl1 = new THREE.Mesh(gloveGeo, gloveMat);
+    gl1.position.set(-0.38, 0.85, 0.25);
+    gl1.scale.set(1, 0.8, 1.2);
+    g.add(gl1);
+    const gl2 = new THREE.Mesh(gloveGeo, gloveMat);
+    gl2.position.set(0.38, 0.85, 0.25);
+    gl2.scale.set(1, 0.8, 1.2);
+    g.add(gl2);
+
+    // Legs
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x1f3a2a });
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5), legMat);
+    leg.position.set(-0.14, 0.35, 0.05);
+    g.add(leg);
+    const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5), legMat);
+    leg2.position.set(0.14, 0.35, 0.05);
+    g.add(leg2);
+    
+    return g;
+  }
+
+  const gkColors = { alisson: 0xcc3333, ederson: 0x33aa66, ramsdale: 0x3366cc };
+  let currentGK = 'alisson';
+  let gkModel = createRealisticGK(gkColors[currentGK]);
+  gkModel.position.set(0, 0, 0.75);
+  scene.add(gkModel);
+
+  // --- BALL with texture-like pattern ---
+  const ballGroup = new THREE.Group();
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 20, 20),
+    new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.3, metalness: 0.05 })
+  );
+  ballGroup.add(ball);
+  // Pentagon pattern (simplified)
+  const pentaMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+  for (let i = 0; i < 12; i++) {
+    const p = new THREE.Mesh(new THREE.CircleGeometry(0.04, 5), pentaMat);
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    p.position.set(0.16 * Math.sin(phi) * Math.cos(theta), 0.16 * Math.sin(phi) * Math.sin(theta), 0.16 * Math.cos(phi));
+    p.lookAt(p.position.clone().multiplyScalar(2));
+    ballGroup.add(p);
+  }
+  ballGroup.position.set(-0.3, 0.25, 1.9);
+  scene.add(ballGroup);
+
+  // --- STRIKE ZONE INDICATOR (glow on foot) ---
+  let strikeGlow = null;
+
+  // --- SHOT TRAJECTORY ---
+  let trajectoryLine = null;
+
+  // --- STATE ---
+  let animating = false;
+  let shotStats = { shots: 0, goals: 0, saved: 0 };
+
+  // --- GK WEAKNESS DATA ---
+  const gkWeakness = {
+    alisson: { zone: 'low left', pct: 31, recommend: 'lace · low left' },
+    ederson: { zone: 'high right', pct: 28, recommend: 'inside · high right' },
+    ramsdale: { zone: 'low center', pct: 33, recommend: 'lace · low center' }
+  };
+
+  // --- UI ELEMENTS ---
+  const shootBtn = document.getElementById('shootBtn');
+  const statShots = document.getElementById('statShots');
+  const statGoals = document.getElementById('statGoals');
+  const statSaved = document.getElementById('statSaved');
+  const statRate = document.getElementById('statRate');
+  const weaknessDisplay = document.getElementById('weaknessDisplay');
+  const weakZoneDisplay = document.getElementById('weakZoneDisplay');
+  const weakPct = document.getElementById('weakPct');
+  const weakBar = document.getElementById('weakBar');
+  const recommendStrike = document.getElementById('recommendStrike');
+  const replayLog = document.getElementById('replayLog');
+
+  function updateWeaknessUI(gkKey) {
+    const w = gkWeakness[gkKey];
+    weakZoneDisplay.textContent = `⬇️ ${w.zone.toUpperCase()}`;
+    weakPct.textContent = w.pct + '%';
+    weakBar.style.width = w.pct + '%';
+    recommendStrike.textContent = w.recommend;
+    weaknessDisplay.innerHTML = `<strong>🔍 ${gkKey.charAt(0).toUpperCase()+gkKey.slice(1)}</strong> · Weakness: ${w.zone} · ${w.pct}% save rate`;
+  }
+  updateWeaknessUI('alisson');
+
+  // --- GK SELECT ---
+  document.querySelectorAll('#gkSelectGroup .chip').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('#gkSelectGroup .chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      currentGK = el.dataset.gk;
+      scene.remove(gkModel);
+      gkModel = createRealisticGK(gkColors[currentGK]);
+      gkModel.position.set(0, 0, 0.75);
+      scene.add(gkModel);
+      updateWeaknessUI(currentGK);
+      replayLog.innerHTML = `🔄 GK changed · aim at ${gkWeakness[currentGK].zone}`;
+    });
+  });
+
+  // --- STRIKE SELECT ---
+  let currentStrike = 'lace';
+  document.querySelectorAll('#footStrikeGroup .chip').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('#footStrikeGroup .chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      currentStrike = el.dataset.strike;
+      replayLog.innerHTML = `✏️ Strike: ${currentStrike} · aim at ${gkWeakness[currentGK].zone}`;
+    });
+  });
+
+  // --- SHOOT FUNCTION (slow-mo + zoom + strike highlight) ---
+  function shoot() {
+    if (animating) return;
+    animating = true;
+    shootBtn.disabled = true;
+
+    const weak = gkWeakness[currentGK];
+    let targetX = 0, targetY = 0.8;
+    if (weak.zone.includes('left')) targetX = -0.9;
+    else if (weak.zone.includes('right')) targetX = 0.9;
+    else targetX = 0;
+    if (weak.zone.includes('high')) targetY = 1.2;
+    else if (weak.zone.includes('low')) targetY = 0.3;
+    else targetY = 0.7;
+
+    const offset = 0.18;
+    const finalX = targetX + (Math.random() - 0.5) * offset;
+    const finalY = targetY + (Math.random() - 0.5) * offset * 0.8;
+
+    const baseChance = 100 - weak.pct;
+    const strikeBonus = currentStrike === 'lace' ? 8 : (currentStrike === 'inside' ? 4 : 2);
+    const chance = Math.min(95, baseChance + strikeBonus);
+    const success = Math.random() * 100 < chance;
+
+    shotStats.shots++;
+    if (success) shotStats.goals++;
+    else shotStats.saved++;
+    statShots.textContent = shotStats.shots;
+    statGoals.textContent = shotStats.goals;
+    statSaved.textContent = shotStats.saved;
+    statRate.textContent = Math.round(shotStats.goals / shotStats.shots * 100) + '%';
+
+    // --- ANIMATION ---
+    const startPos = ballGroup.position.clone();
+    const endPos = new THREE.Vector3(finalX, finalY, 0.2);
+    const duration = 2000; // slow motion
+    const startTime = performance.now();
+
+    // Trajectory
+   
